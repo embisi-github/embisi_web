@@ -1,0 +1,1226 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<title>
+Results of Pandora Experiments</title>
+</head>
+<body background="grey.jpg">
+<h1 align=center>
+<A NAME="7"></A>Chapter 7 : Results of Pandora Experiments</h1>
+
+
+
+<p>
+Using the Pandora network implementation (chapter <A HREF="pandora_network_software_implementation.html#3">3</A>)
+and the additonal clock distribution implementation (chapter
+<A HREF="clock_distribution_implementation.html#6">6</A>), numerous performance tests of the Pandora systems
+became possible. This chapter splits the results of some of those
+perfomed into 3 main sections: clock distribution; MSNL connection
+management; intra- and inter-Pandora stream handling. The chapter
+closes with a summary of the results.
+
+<p>
+<A NAME="7.1"></A><h3>
+7.1 Clock distribution
+</h3>
+<p>
+
+
+<p>
+ This section describes some experiments carried out on the global
+clock distribution clients to evaluate the accuracy of the global
+clock distribution, and the results of those experiments.  The global
+clock distribution system was fully implemented with the enhanced
+fixed point Fuzzball logical clock model, purely an implementation of
+the algorithms derived from the timing of echo packets and the clock
+modelling described in chapter <A HREF="experimentation_for_global_clocks.html#5">5</A>: it was felt that
+it would provide a global clock to any networked Pandora system to an
+accuracy suitable for measuring the operation and performance of a
+Pandora box.
+
+<p>
+<A NAME="7.1.1"></A><h4>
+7.1.1 CFR
+</h4>
+<p>
+
+
+<p>
+One of the main reasons for designing the Pandora ATM switch network
+card was to replace the CFR network interfaces for Pandora. This is
+because, even though the CFR had lasted beyond its expected lifetime,
+maintenance of its hardware had become too difficult to be worthwhile.
+
+<p>
+Unfortunately, the CFR was removed from service before final results
+could be taken for this research. It was felt that this was not very
+important to the research as the
+results for the ATM switch network provide similar results to those
+preliminary results that were acheived using the CFR.
+
+<p>
+<A NAME="7.1.2"></A><h4>
+7.1.2 ATM switch network
+</h4>
+<p>
+
+
+<p>
+The ATM switch network implementation of the global clock distribution
+followed the experimentation detailed in section
+<A HREF="clock_distribution_implementation.html#6.4">6.4</A>.
+
+<p>
+To evaluate the performance of the global clock distribution system a
+pair of Pandora ATM switch network cards, outside Pandora boxes, were
+used as time clients of a standard time server. In addition to the
+Pandora network software implementation, complete with the extra time
+client as described in section <A HREF="clock_distribution_implementation.html#6.5">6.5</A>, an extra process
+was added. This process flashes an LED at the start of every global
+clock second. To perform this accurately it calculates the approximate
+time to the next global clock second, and waits until shortly before
+that time.  At this point (approximately 4 milliseconds prior to the
+next global clock second) it uses the global clock to accurately
+calculate the value of the local clock at the start of the next global
+clock second. Using the transputer's timer-based scheduling, it waits
+until that local clock value. Upon being rescheduled it turns the LED
+on, waits one hundred microseconds, then turns the LED off.
+
+<p>
+An oscilloscope can be used to monitor the voltage of the appropriate
+leg of the LED: when on the voltage is low. By monitoring the LEDs
+from the two different Pandora network cards on the oscilloscope
+(triggering off one of them) traces similar to those in figures
+<A HREF="results_of_pandora_experiments.html#Fig7.1">7.1</A> and <A HREF="results_of_pandora_experiments.html#Fig7.3">7.3</A> can be seen. These
+traces show two aspects of the accuracy of the global clock
+distribution: general running; continuous accuracy at start-of-day.
+These are described in detail in the following sections.
+
+<p>
+<A NAME="7.1.2.1"></A><h5>
+7.1.2.1 Steady-state accuracy of clock distribution
+</h5>
+<p>
+
+
+<p>
+The traces shown in figure <A HREF="results_of_pandora_experiments.html#Fig7.1">7.1</A> graph the
+accumulated traces over 60 seconds of the two LEDs. The oscilloscope
+is triggering off the signal shown in the upper trace, <I> C1</I>. The
+lower trace <I> C2</I> is from the other network card. The
+timebase for the traces is one microsecond per division. The lower
+trace drops from high to low at between 2 microseconds before and 3
+microseconds after the upper trace. The two network cards are being
+served by the same time server, and are connected to the same switch
+and so the network distance from them to the time server is the same.
+
+<p>
+
+
+
+
+
+<A HREF="ps/ledtracesame.ps"> Figure 7.1 : Two time clients with the same distance from time server</A><A NAME="Fig7.1"></A>
+
+
+
+<p>
+The traces shown in figure <A HREF="results_of_pandora_experiments.html#Fig7.2">7.2</A> graph the
+accumulated traces over 120 seconds of the two LEDs, but this time the
+two network cards are connected by different network routes, of
+different lengths, to the time server. (The network card with the
+upper trace is two ATM switches further from the time server than the
+network card with the lower trace.) The timebase is again one
+microsecond per division, and the separation between the two voltages
+falling varies from -3 to +2 microseconds.
+
+<p>
+
+
+
+
+
+<A HREF="ps/ledtracedifferent.ps"> Figure 7.2 : Two time clients with different distances from time server</A><A NAME="Fig7.2"></A>
+
+
+
+<p>
+In both cases the network cards had been connected to the time server
+for about 5 minutes prior to the measurements being taken.
+
+<p>
+The best possible results would be a difference of at most one
+microsecond between the two network cards (as this is the precision of
+the local clock). This is an unreasonable expectation, however, for a
+number of reasons:
+
+<p>
+<UL>
+
+<LI>Accuracy of reading the local clock
+
+<p>
+The accuracy of reading the local clock available to the test process is
+one microsecond, hence its scheduling times have an inaccuracy of at
+least one microsecond.
+
+<p>
+</LI>
+<LI>Inaccuracy in global clock calculation
+
+<p>
+The calculation of the next global clock second boundary in terms of
+the local clock can be at most one microsecond in error if an
+adjustment event is still to occur during the current second.
+
+<p>
+</LI>
+<LI>Inaccuracies in the derived global clock
+
+<p>
+The logical clock model is implemented in a manner to attempt to
+remove any errors in distribution due to inaccuracies in the message
+distribution time. However, this is not perfectly effective. There is
+also likely to be a small amount of error in the global clock derived
+by the time server and distributed to the clients (variations of about
+a microsecond occur for reasons similar to the previous two
+described).
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+More drastic effects may occur if the transputer fails to schedule the
+test process at the ideal time, which may occur if any other high
+priority (i.e. noninterruptable) process is already running at that time.
+
+<p>
+Taking the above reasons into account, it is felt that the fullest
+reasonable accuracy has been acheived.
+
+<p>
+<A NAME="7.1.2.2"></A><h5>
+7.1.2.2 Initial accuracy of clock distribution
+</h5>
+<p>
+
+
+<p>
+The oscilloscope trace shown in figure <A HREF="results_of_pandora_experiments.html#Fig7.3">7.3</A> provides
+a comparison of the two clocks during their initial start-up period. The
+trigger is the same as before, but the timescale is five microseconds per
+division. The test process does not start flashing the LEDs until ten seconds
+after initialisation of the network card, and this corresponds to
+about two seconds after the first clock message has been received
+by the logical clock model. The trace shows the first 60 seconds
+from the first test process LED flash.
+
+<p>
+
+
+
+
+
+<A HREF="ps/ledtracestart.ps"> Figure 7.3 : Initialisation of two time clients the same distance from time server</A><A NAME="Fig7.3"></A>
+
+
+
+<p>
+The two network cards were reset by hand at the same time (within
+human hand accuracy). The first flash is shown at the left of the trace,
+about 23 microseconds between the two cards, the second flash has
+about 21 microseconds between them, then the third flash occurred near
+0. The fourth flash lies further to the right, and as the clock models
+lock on to their frequency errors they approach the central portion of
+the trace.
+
+<p>
+The time for startup of the two clocks is within that predicted by the
+computer model in section <A HREF="experimentation_for_global_clocks.html#5.3.2">5.3.2</A>, (+/-10
+microseconds within a minute), remembering that that described a single client with an
+internal clock drift of -150 microseconds per second.
+
+<p>
+<A NAME="7.1.2.3"></A><h5>
+7.1.2.3 Reliability
+</h5>
+<p>
+
+
+<p>
+If the time server were to fail, or if the network between the time
+client and time server were to fail, then the time client should
+maintain the best time possible. With the test system described above
+the network was unplugged from one of the cards, while the frequency
+error was not using the full precision available. The comparison of
+the two oscilloscope traces showed that in 30 seconds the clock had
+drifted by 4 microseconds.
+
+<p>
+<A NAME="7.1.2.4"></A><h5>
+7.1.2.4 Extractable information
+</h5>
+<p>
+
+
+<p>
+The 16-character LED display attached to the slave transputer of the
+ATM network card can be used by the time client to display relevant
+information. This consists of the frequency error, frequency error
+divisor, compliance, phase error, offset detected, message
+distribution time estimate filter value, minimum message distribution
+time estimate, and an indication of the running time and percentage of
+messages unfiltered.
+
+<p>
+<UL>
+
+
+<p>
+<LI>Frequency error and divisor
+
+<p>
+With time the logical clock model locks in accurately on the frequency
+error of the local clock. When the appropriate steady conditions have
+been achieved the frequency divisor is increased, to tighten the lock
+and increase the accuracy (see section <A HREF="high_precision_clock_distribution.html#4.5.4.3">4.5.4.3</A>).
+For this to occur the compliance must be small for
+10 seconds, and so it only happens if the network is quiet enough for
+the clock message distribution time estimates to be accurate enough
+not to introduce large phase errors. When these conditions occur
+the largest divisor (and hence most accurate frequency error) is
+reached. This can be seen on the LED display when the frequency
+error is using all 32 bits.
+
+<p>
+The frequency errors of the cards used for the oscilloscope traces
+were determined from the display. The card with the lower trace had a
+frequency error of -28.5 microseconds per second, the card with the
+upper trace has a frequency error of -164.9 microseconds per second.
+
+<p>
+</LI>
+<LI>Output offset, phase error and compliance
+
+<p>
+The output offset (microsecond difference between derived global clock
+and incoming clock messages) is a useful indication of how close the
+logical clock is to the global clock, and so gives an idea of the
+current accuracy. After a few minutes it settles to either 0, 1 or -1
+microseconds. The phase error depends on the output offset of incoming
+messages, and so tends to reflect that. As the compliance is a
+long-term average of the phase error, it gives an idea
+of the recent output offsets, and so indicates whether the frequency error
+has not been locked onto. Once the logical clock has locked it varies
+from positive to negative quite frequently, as the phase error
+depends mainly on the errors in incoming clock message
+distribution time estimates. In most cases the phase error and
+compliance were found to vary from -2 to +2 microseconds.
+
+<p>
+</LI>
+<LI>Message distribution times and filtering
+
+<p>
+The LED display will show the minimum clock message distribution time
+estimate, and the current filter value. These give a rough idea of the
+loading of the network and network card, as well as an idea of the
+distance from the card to the time server. The percentage of messages
+filtered is not displayed directly, but must be calculated. The
+percentage of messages not filtered out due to large distribution time
+estimates varies from time to time according to network load, and is
+usually between 55 and 70 percent. These figures are for a network
+distance from time client to time server of 5 switches. Commonly the difference
+between the filter value and the minimum message distribution time
+estimate is at most 4 microseconds on these time clients.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+<A NAME="7.2"></A><h3>
+7.2 ATM connection management
+</h3>
+<p>
+
+
+<p>
+The ATM switch network provides fast cell routing for virtual
+circuits. One of the possibilities provided by the global clock
+distribution was to study the time required to make a virtual circuit
+between two network interfaces over the ATM switch network. The
+Pandora system was an ideal vehicle for this performance measurement
+because it sets up virtual circuits for its data streams.
+
+<p>
+<A NAME="7.2.1"></A><h4>
+7.2.1 MSNL event and data transport timestamp recording
+</h4>
+<p>
+
+
+<p>
+
+
+<p>
+To provide facilities for timing the connection management of the ATM
+switch network the Pandora network software was upgraded to record the
+global times of transmission and reception of MSNL PDU's, and also to
+record the global times of the transmission and reception of blocks of
+data.  These records are transmitted ten times a second by a new
+debugger application, the <I> record manager</I> process, on a record
+logging connection, if that connection has been made. This allows a
+Unix-based DecStation to log the records for transmission and
+reception of both MSNL PDU's and data blocks.
+
+<p>
+<A NAME="7.2.2"></A><h4>
+7.2.2 Virtual circuit creation
+</h4>
+<p>
+
+
+<p>
+
+
+<p>
+The graph in figure <A HREF="results_of_pandora_experiments.html#Fig7.4">7.4</A> shows a timeline for the events
+which occurred for an <I> xvlook</I> from a Pandora system named <I>
+melon</I> at a Pandora system named <I> grape</I>. An <I> xvlook</I> lets a
+user of one Pandora system see through the camera of another Pandora
+system, and the user of that system sees a small picture from the
+camera of the instigator's Pandora system. As can be seen from the
+timeline, the <I> xvlook</I> was only run for about 5 seconds. The
+events which occurred between 196000 and 198000 milliseconds are for
+the video data connection from <I> grape</I> to <I> melon</I>, and are
+magnified in the left-hand half of figure <A HREF="results_of_pandora_experiments.html#Fig7.5">7.5</A>. The
+events which occurred between 198000 and 200000 milliseconds are for
+the video data connection the other way, and are shown in the
+right-hand half if figure <A HREF="results_of_pandora_experiments.html#Fig7.5">7.5</A>. The events between
+200000 and 202000 are due to the closing down of the <I> xvlook</I>.
+
+<p>
+
+
+
+
+
+<A HREF="ps/msnl_time_look.ps"> Figure 7.4 : Timelines of connection management for an {\it xvlook</A><A NAME="Fig7.4"></A>
+
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/msnl_time_conns.ps"> Figure 7.5 : Magnified timelines for connection creation</A><A NAME="Fig7.5"></A>
+
+
+
+<p>
+From the left-hand graph of figure <A HREF="results_of_pandora_experiments.html#Fig7.5">7.5</A> the time taken
+to make the virtual circuit can be calculated. With approximate times,
+the events occur as follows:
+
+<p>
+<OL>
+
+
+<p>
+<LI>At 196429 milliseconds <I> grape</I> initiates a connection by
+sending an MSNL connection make PDU on its ATM port, which arrives at
+its local switch.
+
+<p>
+</LI>
+<LI>The switch knows the route to the destination specified in the
+received MSNL PDU (in this case connections had already been recently
+made, so the route through the switch was cached), and forwards the MSNL
+PDU along that route.
+
+<p>
+</LI>
+<LI>After passing through another 4 switches, the MSNL connection
+make PDU arrives at <I> melon</I> after 196435. This message has taken
+6.047 milliseconds to travel from <I> grape</I> to <I> melon</I>.
+
+<p>
+</LI>
+<LI>The Pandora box <I> melon</I> checks the connection is expected by
+the server card, and then responds by sending an MSNL connection reply
+PDU to its switch just before 196436. This decision and transmission
+took 0.268 milliseconds.
+
+<p>
+</LI>
+<LI>After travelling along the return path through the five
+switches, the MSNL connection reply PDU arrives at <I> grape</I> before
+196442 milliseconds, and the virtual circuit is complete. The total
+time taken is 12.110 milliseconds.
+
+<p>
+</LI>
+</OL>
+
+
+<p>
+The right-hand graph, with the expanded timeline of the making of the
+return connection, follows the same outline with the two machines
+reversed. This virtual circuit took 11.882 milliseconds to make.
+
+<p>
+Further experimentation yields an average connection make time of
+11.7 milliseconds, of which an average 277 microseconds are taken by
+the Pandora system to which the connection is being made. Each
+switch in the route between the two machines takes 2.3 milliseconds,
+which splits evenly between the outward and return journeys.
+
+<p>
+<A NAME="7.2.3"></A><h4>
+7.2.3 Virtual circuit destruction
+</h4>
+<p>
+
+
+<p>
+A look at the timings for the closing of the connections for the <I>
+xvlook</I> is also enlightening. It would appear that at time 201241 <I>
+melon</I> kills one of its connections to <I> grape</I>, followed at 201471
+<I> grape</I> kills its end of that connection. These actions are both
+prompted by the Pandora interface, which was in turn commanded by the
+workstation to kill the network video connection. An odd feature of
+this timeline is that both Pandora boxes should transmit the MSNL
+connection kill PDU; it would be expected that the first one
+transmitted by <I> melon</I> would propagate through the switches to
+<I> grape</I>. It was possible that the propagation delay for each switch
+was large enough that the MSNL PDU has not propagated to <I> grape</I> within 230
+millisconds, and so <I> grape</I> killed the connection from its end. The
+same is true for the other connection, with a gap of 172 milliseconds
+between the two ends transmitting the MSNL connection kill PDUs. However, when
+the large time (230 milliseconds) without successful propagation of the
+kill PDUs was discovered, further investigations were made: the actual
+reason for the failure of the propagation in the time given is a
+misunderstanding of the nature of the connection kill PDUs by the
+switches, which leads to them being discarded as invalid, and hence not
+propagated by the switches. (With this problem was solved, the propagation time
+becomes (as for connection make and reply PDUs) 11 milliseconds, and both
+ends do not transmit MSNL kill PDUs.)
+
+<p>
+<A NAME="7.3"></A><h3>
+7.3 Pandora system
+</h3>
+<p>
+
+
+<p>
+
+
+<p>
+In addition to the implementation of the distribution of the global clock
+inside a Pandora system, described in section <A HREF="clock_distribution_implementation.html#6.5">6.5</A>, extra
+facilities were added to the server to allow the measurement of the
+performance of the Pandora system on its own and with other Pandora
+systems through the network. These are described in the first section below.
+
+<p>
+With the capability of the full system there are very many experiments
+which may be performed on single and multiple Pandora boxes, to study
+single stream behaviour, stream interaction, network tranport, and so
+on. To completely cover this area is beyond the scope of the research
+for this thesis. However, a reasonable number of experiments were
+performed to examine simple Pandora box stream behaviour and
+networking behaviour, to demonstrate the power of the distributed
+global clock as a performance evaluation aid, and to investigate the
+network principles in action. The remaining sections describe those
+experiments.
+
+<p>
+<A NAME="7.3.1"></A><h4>
+7.3.1 Segment and data timestamp recording
+</h4>
+<p>
+
+
+<p>
+As described in section <A HREF="networking_for_pandora_boxes.html#2.2.5">2.2.5</A>, the server uses a central segment
+buffer allocator for all the segments which it handles. This segment
+allocator was enhanced to record the global time of each segment
+buffer allocation, the duration of allocation, the process to which it
+was allocated, the process which deallocated it, and the length,
+segment sequence number and Pandora timestamp of the segment stored in
+the buffer at deallocation. By updating the network sink process,
+these records can be transmitted over the network every quarter of a
+second. Coupled to the record system added to the network software,
+described above (section <A HREF="results_of_pandora_experiments.html#7.2.1">7.2.1</A>), this system
+allows a log to be made by a Unix-based DecStation of the path of data
+from source, through the network, to server sink process of data in
+any stream of the Pandora systems, all using global timestamps.
+
+<p>
+The data source handling processes in the server transputer
+(see section <A HREF="networking_for_pandora_boxes.html#2.2.5">2.2.5</A>) allocate buffers from the central
+buffer area at initialisation, so that any data which they may receive
+from a source may be read directly into the buffer area. The buffers
+are freed by the sink processes.  As described above, the global time
+of allocation and duration of allocation are now recorded.  To extract
+useful information from these times the system must be well understood:
+
+<p>
+<UL>
+
+
+<p>
+<LI>Time of allocation
+
+<p>
+A buffer is allocated to a process just after the previous buffer
+allocated to that process has been passed to the switching element of
+the server, therefore this time is approximately equivalent to the
+time the previous segment reached the server switch process.
+
+<p>
+</LI>
+<LI>Time of deallocation
+
+<p>
+A buffer is deallocated once all the handshaking sink processes
+using the buffer have succeeded in passing the data contained within
+it to the sink. The deallocation time is therefore the time at which
+the data is fully accepted by the data sink.
+
+<p>
+</LI>
+<LI>Other times
+
+<p>
+The time the buffer is actually used by the source process, and the
+time the buffer passes from the server switch process to the sink
+process, are not deducible. However, the global timestamp of the
+generation of the data stored in the buffer gives an idea of the
+initial use time.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+<A NAME="7.3.2"></A><h4>
+7.3.2 Data source timestamps
+</h4>
+<p>
+
+
+<p>
+The introduction of the distributed global clock to Pandora systems
+increased the accuracy of timestamps in the Pandora segments from 64
+microseconds to 1 microsecond. This allows a finer examination of the
+data sources than was previously possible. Both audio and video are
+examined here.
+
+<p>
+<A NAME="7.3.2.1"></A><h5>
+7.3.2.1 Audio data generation
+</h5>
+<p>
+
+
+<p>
+As described in section <A HREF="networking_for_pandora_boxes.html#2.2.2">2.2.2</A>,
+the audio capture is performed
+using an 8kHz CODEC, which produces one sample of audio data every 125
+microseconds. This data is collected in a FIFO until 32 interrupts
+from the CODEC have occurred, indicating the FIFO contains 32 samples,
+4 milliseconds of data. At this point the audio transputer generates a
+timestamp and extracts the data from the FIFO, forming a Pandora audio
+segment, which then travels to the server.
+
+<p>
+Figure <A HREF="results_of_pandora_experiments.html#Fig7.6">7.6</A> shows results from an experiment using a
+single Pandora audio stream. The <I> xvmedia</I> application was run to
+create audio source on a Pandora box <I> grape</I>, and route the data
+through the ATM switch network to another Pandora box <I> melon</I>.
+From the above description, it may be assumed that the timestamps from
+successive Pandora audio segments will differ by approximately 4
+milliseconds, the length of the segments.
+
+<p>
+The left-hand graph in figure <A HREF="results_of_pandora_experiments.html#Fig7.6">7.6</A> shows the times
+between successive audio segments, calculated from their timestamps,
+for a small number of audio segments (50 segments, which corresponds
+to 200 milliseconds). The right-hand graph shows a histogram of the
+differences between successive timestamps for all the segments in the
+audio stream, from creation to deletion of the stream. As expected,
+the distribution is centred on about 4 milliseconds. However, the
+distribution clearly splits into two spikes, one at 4003 microseconds
+(70% of the segments) and a smaller one at 3989 microseconds (20% of
+the segments). However, the average of all the inter-segment times for
+the stream is 4000.1 microseconds. A look at the left-hand graph shows
+why the two spikes occur. It is clear that about one in 4 or 5
+segments is timestamped at about 3989 microseconds after the previous
+segment, and the others around 4003 microseconds. Now the audio
+transputer is idle except when handling the CODEC interrupts. There is
+no time delay in the code for handling these interrupts, and the
+timestamping should occur at a consistent time after the preceeding
+interrupt. This leads to the belief that the CODEC itself introduces
+the unexpected distribution.
+
+<p>
+
+
+
+
+
+<A HREF="ps/xvmedia.audio.ps"> Figure 7.6 : Timestamp differences between segments for outgoing audio stream</A><A NAME="Fig7.6"></A>
+
+
+
+<p>
+Figure <A HREF="results_of_pandora_experiments.html#Fig7.7">7.7</A> shows similar graphs to <A HREF="results_of_pandora_experiments.html#Fig7.6">7.6</A>,
+except in these graphs the <I> xvlocal</I> application was used to
+create a local audio stream. The data is sourced by the audio card in
+the Pandora box <I> melon</I>, sent to the server card, and returned to
+the audio card for replay through the CODEC. As can be seen from the
+right-hand graph, the distribution is not as clean as before. The
+average of the whole stream's inter-segment timestamp differences is
+now 4000.2 microseconds (note that this figure is for audio captured on
+<I> melon</I>, whereas the previous figure is for audio captured on <I>
+grape</I>), but the spikes in the distribution have been smoothed as the
+audio processor must now cope with muting the captured data,
+outputting the data from the server as well as capturing the data
+as performed above. The server processor will introduce jitter in the
+stream as well, as it must handle other tasks as well as returning the
+audio data it receives from the audio processor. The left-hand graph
+exhibits none of the patterning which could be seen in figure
+<A HREF="results_of_pandora_experiments.html#Fig7.6">7.6</A>, as this is probably all masked by the jitter.
+
+<p>
+It is worth noting that the data plotted in the graphs here are not
+independent. If one segment is timestamped late between segments
+timestamped as normal, the differences plotted will be first smaller
+then larger than the mean. This will tend to introduce a symmetric
+distribution of inter-segment timestamp differences, and alternating
+low and high impulses on the left-hand graph of the figures.
+
+<p>
+
+
+
+
+
+<A HREF="ps/xvlocal.audio.ps"> Figure 7.7 : Timestamp differences between segments for local audio stream</A><A NAME="Fig7.7"></A>
+
+
+
+<p>
+<A NAME="7.3.2.2"></A><h5>
+7.3.2.2 Video data generation
+</h5>
+<p>
+
+
+<p>
+Figure <A HREF="results_of_pandora_experiments.html#Fig7.8">7.8</A> shows similar results to those
+described in the previous section on audio data generation, except
+this time for video data generation. A small local video source was
+created using <I> xvlocal</I>. This captures video frames at 25Hz into
+single 4 kilobyte Pandora video segments, each of which is timestamped
+prior to the data for the segment being fed to the compression
+unit. The right-hand graph shows the distribution of inter-segment
+timestamp differences, and the left-hand graph shows the differences
+for particular segments.
+
+<p>
+
+
+
+
+
+<A HREF="ps/xvlocal.small2.ps"> Figure 7.8 : Timestamp differences between segments for small local video stream</A><A NAME="Fig7.8"></A>
+
+
+
+<p>
+The strange distribution is unexpected. The right-hand graph clearly
+shows a proportion of segments being timestamped 48 microseconds
+earlier or later than expected. From the left-hand graph it can be
+seen that these are actually timestamped late: with the following
+segment being timestamped on time, this gives the symmetric
+distribution shown in the right-hand graph. Occasionally
+(e.g. segments 131 and 132) there will be two late segments in a row,
+shown by a 40048 microsecond spike followed by a 40000 microsecond
+spike, followed by a 39952 microsecond spike, in the left-hand graph.
+
+<p>
+With a video frame consisting of two Pandora segments the difference
+between timestamps of first segments of successive frames are
+distributed as shown in figure <A HREF="results_of_pandora_experiments.html#Fig7.9">7.9</A>. This
+distribution again has symmetry, but with spikes at 40016, 40048, 40064
+and 40080 microseconds.
+
+<p>
+No definite explanations has been brought forward to cover these distributions.
+However, there is a theory. The task of managing a segment prior to timestamping
+consists of: the capture video synchronistaion process (section <A HREF="networking_for_pandora_boxes.html#2.2.3">2.2.3</A>)
+counts horizontal
+synchronisation pulses, every 64 microseconds; on reaching the end of a
+segment the control process is sent a message indicating the whole segment
+is in VRAM; after a small amount of handling the control process sends a
+message to the FIFO handler process indicating the stream's segment is ready;
+the FIFO handler process then gets the global timestamp.
+
+<p>
+Now, the transputer itself is responsible for the order of execution of the
+processes: once a message has been sent, if the recipient immediately accepts
+the message, then either process may be scheduled. In the case of the video
+capture software, the video synchronisation process runs at high priority,
+and so it will continue to execute after sending the message to the control
+process; however, the other processes are both low priority.
+
+<p>
+So, it is possible that in some circumstances the FIFO hander executes
+as soon as it receives the message from the control process; at other
+times the control process continues to execute until it blocks before
+the FIFO handler is scheduled. With single segment video streams, where the
+control process must cope with the end of the first segment being the end
+of the capture for that vertical synchronisation, this could take
+48 microseconds. With the larger video streams consisting of two segments the
+control process must do less work after sending the message to the FIFO process
+before blocking, perhaps taking 16 microseconds.
+
+<p>
+Now, this can account for the spikes, but without explaining the actual
+scheduling for the different segments, particularly the almost constant
+pattern of one delayed segment followed by four undelayed segments. Also
+unexplained is the additional patterning produced in the case of two segment
+video, where 64 microseconds extra delay is possible. By looking at the 
+right-hand graph in figure <A HREF="results_of_pandora_experiments.html#Fig7.9">7.9</A> the two patterns, it can
+be seen that the two effects are not independent. An explanation for the
+additional 64 microsecond patterning is the video synchronisation process
+missing horizontal synchronisation interrupts, a real possibility.
+
+<p>
+
+
+
+
+
+<A HREF="ps/xvlocal.med2.ps"> Figure 7.9 : Timestamp differences between segments for medium local video stream</A><A NAME="Fig7.9"></A>
+
+
+
+<p>
+Unlike the audio data timestamping, where the distributions of
+inter-segment timestamp differences depend on incoming streams as well
+as outgoing streams, the video data timestamping is not affected by
+any video streams being replayed by the Pandora box, as the video
+capture card is not involved in video replay.
+
+<p>
+<A NAME="7.3.3"></A><h4>
+7.3.3 Server data switching times
+</h4>
+<p>
+
+
+<p>
+Having examined the Pandora data generation, which does not require
+global clock distribution, an examination of the timing of Pandora
+data communication becomes reasonable. The second stage that any
+Pandora data passes through after the generation stage is the server
+transputer, so the timing of data handling by the server transputer is
+the obvious next step.
+
+<p>
+Using the available global times the approximate time between the
+capture of a segment to its being passed to the server switching
+process can be calculated (<I> source-to-server time</I>), as the
+difference between the allocation time of a buffer and the capture
+time of the segment stored in the previous buffer allocated to the
+appropriate source process. Also the approximate time that the data
+remains in the server after reaching the switch process (<I> switching
+time</I>) is the difference between the allocation time of a buffer to a
+source process (i.e. the time the previous buffer was passed to the
+server switch process) and the deallocation time of the previous
+buffer by the sink process.
+
+<p>
+<A NAME="7.3.3.1"></A><h5>
+7.3.3.1 Local audio streams
+</h5>
+<p>
+
+
+<p>
+The graphs in figure <A HREF="results_of_pandora_experiments.html#Fig7.10">7.10</A> show the
+distribution of these two times for a local audio stream, and figure
+<A HREF="results_of_pandora_experiments.html#Fig7.12">7.12</A> shows the distribution for a local video
+stream. The right-hand graph of figure <A HREF="results_of_pandora_experiments.html#Fig7.10">7.10</A>
+ shows that the 
+<I> switching time</I> for the data to the sink is consistent at about 672 microseconds,
+whereas there is jitter in the <I> source-to-switch time</I>, transferring
+the data from the audio CODEC FIFOs
+to the server switch, shown in the left-hand graph.
+The most likely place for this to occur is
+inside the audio processing card, as there is no jitter in the
+<I> switching time</I> distribution indicating the server is very lightly loaded. A
+comparison of the <I> source-to-switch time</I> distribution 
+with the right-hand graph in figure 
+<A HREF="results_of_pandora_experiments.html#Fig7.7">7.7</A>, which refers to the same experimental data, is
+useful. The jitter shown in the latter graph occurs prior to
+timestamping of the data, which in turn is prior to reading the data
+from the FIFOs. The jitter in the former occurs after reading the
+timestamp. If these were independent then the jitter at the audio
+sink would be a summation of the distributions, wider than both. However, if the jitter
+is introduced in both cases in the audio processing card, then the
+distributions are not independent. Now, the left-hand graph in figure
+<A HREF="results_of_pandora_experiments.html#Fig7.11">7.11</A> shows the distribution of the
+differences between the time the buffer for a segment is passed to the
+switching process and the time the previous segment was timestamped by
+the audio source. The width of this distribution is similar to that of
+figure <A HREF="results_of_pandora_experiments.html#Fig7.7">7.7</A>; this shows that the source timestamping jitter and the jitter
+in the <I> source-to-switch</I> time distribtion are interdependent.
+The right-hand graph in figure
+<A HREF="results_of_pandora_experiments.html#Fig7.11">7.11</A> shows the distribution of times
+between deallocation of buffers by the server, a distribution closely
+related to that of the times between presentation of successive
+segments to the audio sink. This again shows a similar width of
+distribution, providing more support for the argument that the audio
+processor is introducing the jitter.
+
+<p>
+
+
+
+
+
+<A HREF="ps/xvlocal.audio.server.ps"> Figure 7.10 : Distribution of transit times for a local audio stream inside Pandora</A><A NAME="Fig7.10"></A>
+
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/xvlocal.audio.oldserver.ps"> Figure 7.11 : Internal time differences between segments for a local audio stream</A><A NAME="Fig7.11"></A>
+
+
+
+<p>
+<A NAME="7.3.3.2"></A><h5>
+7.3.3.2 Local video streams
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+Comparing the jitter of the audio data stream to that of the video
+data stream is enlightening. The jitter in the audio stream's <I> source-to-switch</I>
+time distribution is about 20 microseconds (from the left-hand graph in figure
+<A HREF="results_of_pandora_experiments.html#Fig7.10">7.10</A>), whereas the
+jitter in the video stream's <I> source-to-switch</I> time distribution
+is 300 microseconds (from the left-hand graph in figure
+<A HREF="results_of_pandora_experiments.html#Fig7.12">7.12</A>). A look at the right-hand graph shows
+there is a great deal more jitter inside the server switch and video
+sink processes, almost up to 1.5 milliseconds. This can occur either
+because the server transputer is overloaded, or because the video
+capture and video mixer are both active and cause interaction.
+It is unlikely that the server transputer is overloaded, as the only data
+it is switching is a small
+video stream with 40 milliseconds between segments, a time much longer
+than the jitter. Much more plausible is the interaction between the
+server video sink process and the video mixer transputer processes
+which handshake lines of video through FIFOs and the decompression
+system, and similarly for the video capture transputer processes. Both
+of these processors have hardware to maintain, and the video mixer
+transputer processes must handle the video output which is not
+synchronised with the video input. Indeed, there are so many
+possibilities that the precise reasons for the jitter are not
+important. However, the size of jitter is worth recognising.
+
+<p>
+Another important feature of the video timing distributions is the
+difference between the means of the distributions. The video source
+and sink systems in Pandora both use FIFOs for communicating the video
+data from and to the compression and decompression hardware. The
+interprocessor communication structure is also identical. So why does
+the video <I> source-to-switch time</I> appear to be only between 1.3
+and 1.65 milliseconds (left-hand graph), whereas the
+video <I> server switching time</I> is at least 6.6 milliseconds (right-hand graph)?
+The reason is this: the time differences used in the video
+<I> source-to-switch time</I> distribution are the differences between the timestamp of
+the video data and the time at which the next buffer is requested by
+the video source process on the server transputer; the video
+source process reads in the video data from the video capture card in
+parallel with requesting the next buffer. So the times shown in the
+left-hand graph do not refer to the transfer of the whole of the video
+data, but for all the control of the video; however, it does provide a fairly
+accurate picture of the jitter in the capturing of the data. Because of the
+manner of the time calculations, the data transfer time
+not included in the video <I> source-to-switch time</I> will appear on the
+<I> server switching time</I> for the data.
+
+<p>
+
+
+
+
+
+<A HREF="ps/xvlocal.small3.server.ps"> Figure 7.12 : Distribution of transit times for a small local video stream inside Pandora</A><A NAME="Fig7.12"></A>
+
+
+
+<p>
+<A NAME="7.3.3.3"></A><h5>
+7.3.3.3 Network audio streams
+</h5>
+<p>
+
+
+<p>
+Figure <A HREF="results_of_pandora_experiments.html#Fig7.13">7.13</A> shows the distribution of
+transit times for segments from a network audio stream from the server switch
+to the network (<I> source server switching time</I>), and
+that from the server switch to the audio sink at
+the other end of a network audio connection (<I> sink server switching time</I>).
+The second of these relates closely to the <I> server switching time</I> distribution shown in
+the right-hand graph show in figure
+<A HREF="results_of_pandora_experiments.html#Fig7.10">7.10</A>. The same initial peak at 673
+microseconds can be seen in both graphs, but the networked audio
+stream requires more management than the local audio stream, and this
+interferes with the distribution of the audio to the give the second
+peak at 684 microseconds in the right-hand graph of figure
+<A HREF="results_of_pandora_experiments.html#Fig7.13">7.13</A>. A similar comparison can be made
+between the <I> source server switching time</I> distribution, the left-hand graph of this
+figure, and the right-hand graph of
+figure <A HREF="results_of_pandora_experiments.html#Fig7.10">7.10</A>. Both distributions exhibit the single peak,
+but this is centred at 524 microseconds for switching
+the data to the network. This extra speed
+is gained because the network software is always ready for a complete
+segment of data, whereas the audio sink must be fed data in 16 sample
+portions. This requires extra management and twice as many
+communications with the audio sink as are needed by the network.
+
+<p>
+
+
+
+
+
+<A HREF="ps/xvmedia.all.svr.ps"> Figure 7.13 : Distribution of transit times for a network audio stream inside Pandora</A><A NAME="Fig7.13"></A>
+
+
+
+<p>
+<A NAME="7.3.3.4"></A><h5>
+7.3.3.4 Network video streams
+</h5>
+<p>
+
+
+<p>
+Similar graphs are shown in figure <A HREF="results_of_pandora_experiments.html#Fig7.14">7.14</A>, but
+this time for a small video stream. Comparisons may be drawn between
+these and the right-hand graph in figure
+<A HREF="results_of_pandora_experiments.html#Fig7.12">7.12</A>, as they all relate to <I> server switching times</I>.
+Both the right-hand
+graphs are for server switch to video mixer, but the graph in figure
+<A HREF="results_of_pandora_experiments.html#Fig7.14">7.14</A> refers to data coming from the network.
+The difference in the peaks of the distribution times between 4.2
+milliseconds for the network video source and 6.7 milliseconds for the
+local video source is explained in section <A HREF="results_of_pandora_experiments.html#7.3.3.2">7.3.3.2</A>: the
+data transfer time from the video source is not all included in the
+<I> source-to-switch time</I>, but included in the <I> server switching time</I> from the video
+source. If it is assumed that video switching operations from both network to video sink
+and video source to video sink
+take the same mean time, and there is no reason not to assume this,
+then the means of the right-hand graph in figure 
+<A HREF="results_of_pandora_experiments.html#Fig7.12">7.12</A> and that in figure <A HREF="results_of_pandora_experiments.html#Fig7.14">7.14</A>
+should be the same, excluding the mean data transfer time not included in the
+<I> source-to-switch time</I>. This implies the mean data transfer time is approximately 
+6.7 - 4.2 = 2.5 milliseconds. This 2.5 milliseconds should be added to the
+left-hand graph of figure <A HREF="results_of_pandora_experiments.html#Fig7.12">7.12</A>,
+and the times shown in the right-hand graph of that figure may be taken to be 2.5 milliseconds
+less than shown. This reduction also applies to the left-hand graph of
+figure <A HREF="results_of_pandora_experiments.html#Fig7.14">7.14</A>.
+
+<p>
+A comparison of these last two graphs is intriguing. The local video
+sink appears to take about 500 microseconds longer to handle a segment
+of video than the network does. This is in spite of the extra hardware
+supplied to support the video sink, the FIFO's to the decompression
+hardware. This is probably because the protocol used over the INMOS
+OS-link between the server transputer and the video mixer transputer
+is slow enough to waste the advantage of the extra hardware.
+
+<p>
+
+
+
+
+
+<A HREF="ps/xvlook.small.all.svr.ps"> Figure 7.14 : Distribution of transit times for a network video stream inside Pandora</A><A NAME="Fig7.14"></A>
+
+
+
+<p>
+<A NAME="7.3.4"></A><h4>
+7.3.4 Network transit times
+</h4>
+<p>
+
+
+<p>
+
+
+<p>
+The network performance is very important to the performance of a
+large multi-Pandora system. The graphs in figure
+<A HREF="results_of_pandora_experiments.html#Fig7.15">7.15</A> show the distribution of <I> network transit times</I>
+for audio streams (left-hand graph) and small video streams (right-hand graph),
+over 5 ATM switches.
+
+<p>
+The audio stream takes a fairly constant time per segment, around 250
+microseconds. This compares with the 268 microseconds between
+connection make reception and connection reply transmission for the
+MSNL connection management (see section
+<A HREF="results_of_pandora_experiments.html#7.2.2">7.2.2</A>. Additionally, the time taken for
+a single cell to traverse the 5 ATM switches between the two Pandora
+boxes is about 64 microseconds (6 ATM links at 7.6 microseconds, 5 ATM
+switches at 3.6 microseconds, see section
+<A HREF="experimentation_for_global_clocks.html#5.1.2.3">5.1.2.3</A>).  This implies that the segmentation,
+reassembly and queue management in both Pandora boxes takes about 186
+microseconds for the audio segments. The audio segments are two ATM
+cells long, as the generic header is 5 words long, the audio specific
+header 4 words, and the data is 32 8-bit samples. This corresponds to
+an instantaneous data rate of 2.9 Mbps. The video data has a transit
+time of around 1930 microseconds, small video segments are 1880 bytes
+long (40 ATM cells), which corresponds to an instantaneous data rate
+of 8.1 Mbps. This compares to the maximum transmission rate on the CFR
+of about 3 Mbps, and 4 Mbps aggregate reception and transmission data
+rates. Combining the transit time figures for audio and video
+segments, 250 microseconds for 2 cells and 1930 microseconds for 40
+cells, leads to an estimate that 45 microseconds is required to handle
+a cell, 96 microseconds of overhead per block, with 64 microseconds
+network delay.
+
+<p>
+It is interesting to compare the <I> network transit times</I> for segments of
+data with the <I> source-to-switch times</I> and <I> server switching times</I> for
+similar segments. For audio data the former is, as stated above, about 250
+microseconds, while the latter are 535 and 672 microseconds.
+Similarly, the video takes only around 1930 microseconds to transmit
+over the network, whereas the internal Pandora data transit times are
+more than twice that (around 4200 microseconds).
+So clearly (as there is no pipelinig of data inside Pandora) the network itself is not a throughput
+bottleneck, rather the switching, data generation or data replay limit the
+performance available.
+
+<p>
+The graphs do not show the full jitter which occurred during the
+experiments. The audio stream had a maximum transmission time of 355
+microseconds, and the video stream a maximum transmission time of 2105
+microseconds.
+
+<p>
+
+
+
+
+
+<A HREF="ps/xv.single.net.ps"> Figure 7.15 : Distribution of network transit times for audio streams and small video streams</A><A NAME="Fig7.15"></A>
+
+
+
+<p>
+<A NAME="7.3.5"></A><h4>
+7.3.5 End-to-end delays
+</h4>
+<p>
+
+
+<p>
+Figure <A HREF="results_of_pandora_experiments.html#Fig7.16">7.16</A> shows the distribution of the time
+taken between a Pandora data source being captured and it arriving at
+its data sink processor, having travelled through the ATM network in between.
+This provides the best picture of the jitter in the streams once they
+have travelled through the network. The left-hand graph shows the
+distribution for audio streams, the right-hand graph for small video
+streams. The left-hand graph is expected to be about 535 + 522 + 250 + 680 = 1987
+microseconds (adding the <I> source-to-switch</I>, two <I> server switching</I> and
+<I> network transit</I> times together); the difference of 170 microseconds is taken up
+by the time taken after network reception to delivering the segment to the server switch.
+For the video the calculation is 1500 + 6250 + 1930 + 4200 = 13880, with about 1000
+microseconds taken in transferring the data.
+
+<p>
+
+
+
+
+
+<A HREF="ps/xv.single.end.to.end.ps"> Figure 7.16 : Source to sink delays for networked audio and small video streams</A><A NAME="Fig7.16"></A>
+
+
+
+<p>
+<A NAME="7.4"></A><h3>
+7.4 Summary
+</h3>
+<p>
+
+
+<p>
+
+
+<p>
+This chapter has provided details of experiments performed with the
+Pandora box implementation of the global clock distribution system
+described in chapter <A HREF="clock_distribution_implementation.html#6">6</A>.
+
+<p>
+First the accuracy of the global clock distribution system was
+outlined, showing that it achieves relative errors of less than 2
+microseconds. This provided a basis for examining the performance of
+connection management on the ATM switch network, where it was shown
+that making a connection though the ORL ATM switches take about 2.3
+milliseconds per hop.
+
+<p>
+Detailed results were then given of experiments with the Pandora
+system, where the interactions between the Pandora box processors and
+their hardware was examined to explain the distributions of times
+taken to perform certain stages of the transfer of data along the path
+of Pandora streams. From this it was deduced that the video and audio
+subsystems limit the amount of Pandora data that can be handled by a
+Pandora box, and that the network is no longer a performance
+bottleneck.
+
+<p>
+Other experimental work has been done on clock distribution before:
+<B><A HREF="bibliography.html#Bib54">[54]</A></B> presents a master-slave clock synchronisation system with
+an accuracy of 10 milliseconds; <B><A HREF="bibliography.html#Bib52">[52]</A></B> examines the true wide
+area with experiments on packet delays on trans-Atlantic links for
+clock synchronisation, where the accuracy of synchronization could be
+in the order of milliseconds. Also relevant to the experiments
+performed here is the examination of performance of the CFR Pandora
+system presented in <B><A HREF="bibliography.html#Bib10">[10]</A></B>, which utilised the 16-bit CFR
+network card.
+
+<p>
+<p>
+<center><A HREF="conclusions.html">Chapter 8 : Conclusions</A>
+</body></html>

@@ -1,0 +1,456 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<title>
+Conclusions</title>
+</head>
+<body background="grey.jpg">
+<h1 align=center>
+<A NAME="8"></A>Chapter 8 : Conclusions</h1>
+
+ With the proliferation of high speed networks, and specifically the
+coming-of-age of ATM networks, real-time multimedia communication
+systems are becoming a reality.  The experimental Pandora system is
+now over five years old, and the lessons which it can teach in this
+area need to be learned. This dissertation has exposed many of those
+lessons. In addition, it has shown that just as high speed networks
+enable the building of real-time multimedia communication systems,
+they also enable the accurate distribution of a global clock to allow
+detailed analysis of them. To fully implement such a clock
+more than just the network is involved: stable hardware counters,
+deterministic network driver software and precise clock sources are
+required. For precise clock sources, this dissertation
+has shown that the Navstar GPS system works very well in this regard,
+and the growing availability of GPS receiver units increases the
+availability of precise clock sources, to the extent of allowing any
+small LAN to have its own local clock source and clock distribution
+service.
+
+<p>
+<A NAME="8.1"></A><h3>
+8.1 Results of the work
+</h3>
+<p>
+
+
+<p>
+ In this dissertation the design of networking software for the Pandora
+distributed multimedia system has been addressed. An implementation of
+this has been detailed. Furthermore, a system for the accurate
+distribution of a precise global clock has been examined, experiments
+described to evaluate the expected performance if the system, and an
+implementation integrated with the Pandora system described. Finally,
+the combined system has been shown to be able to provide detailed
+performance measurements of a distributed networking system, a
+specific application of which is the Pandora system.
+
+<p>
+Overall the examination of the performance of the Pandora system
+using the full distributed global clock system highlights two
+areas. Firstly, the network principles described in section
+<A HREF="networking_for_pandora_boxes.html#2.3">2.3</A>, to which the networking software for Pandora was
+designed to conform, are good foundations on which real-time networked
+multimedia can be built with confidence. Secondly, that access to a
+precise, accurate global clock at any point in a real-time distributed
+multimedia system is very useful if that system is to be fully
+understood, particulary because it is the complex interactions between
+the many parts of the system which must be studied. These two main
+areas are examined in more detail below.
+
+<p>
+<A NAME="8.1.1"></A><h4>
+8.1.1 Proposed network principles examined
+</h4>
+<p>
+
+
+<p>
+This section looks at the proposed network principles thought to be
+required to be supported by a multimedia system's network subsystem
+(see section <A HREF="networking_for_pandora_boxes.html#2.3">2.3</A>), the implementation of them in
+Pandora's network subsystem (see chapter <A HREF="pandora_network_software_implementation.html#3">3</A>), and
+the results of the experiments performed on Pandora (from chapter
+<A HREF="results_of_pandora_experiments.html#7">7</A>), to draw conclusions on their correctness,
+importance and usefulness.
+
+<p>
+<A NAME="8.1.1.1"></A><h5>
+8.1.1.1 Commands, messages and control
+</h5>
+<p>
+
+
+<p>
+Principle <A HREF="networking_for_pandora_boxes.html#2.3.1">2.3.1</A> draws together the
+requirements for the control of the network subsystem of a Pandora
+box. The implementation, in particular the handling of messages for a
+debugging and remote access to the interface request/response system
+described in section <A HREF="pandora_network_software_implementation.html#3.3.6.5">3.3.6.5</A>,
+provides an invaluable path for both the management of experiments and
+collection of experimental data from a Pandora system while it is
+operating. This path was used for all experimental data collection in
+the experiments described in chapter <A HREF="results_of_pandora_experiments.html#7">7</A>.
+
+<p>
+<A NAME="8.1.1.2"></A><h5>
+8.1.1.2 Overload handling
+</h5>
+<p>
+
+
+<p>
+The network support for the requirements for overload handling (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>) are hard to test, particularly on the
+ATM network card because, as described in section
+<A HREF="results_of_pandora_experiments.html#7.4">7.4</A>, the ATM network was not a performance
+bottleneck. However, the Pandora system is well regarded by users for
+gentle performance degradation under overload: the overload handling
+is shown to be good because of the lack of overload problems. Indeed,
+as noted in section <A HREF="results_of_pandora_experiments.html#7.4">7.4</A>, the video subsystem is the
+performance bottleneck, and its overload characteristics are a
+lowering of the frame-rate of the video, which generally passes
+unnoticed.
+
+<p>
+<A NAME="8.1.1.3"></A><h5>
+8.1.1.3 Data reliability
+</h5>
+<p>
+
+
+<p>
+The requirements for data reliability (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.4">2.3.4</A>) are met by the system. Indeed, the
+system does not apparently lose any data, although this is helped by
+the underlying reliability of the CFR network (section
+<A HREF="pandora_network_software_implementation.html#3.2">3.2</A>), and the lossless nature of the ATM network when
+not running near overload. The push of ATM switch vendors and the
+standards body on ATM continues to be towards providing a lossless
+network, particularly for constant bit-rate streams, so the
+simplisitic implementation should continue to work.
+
+<p>
+<A NAME="8.1.1.4"></A><h5>
+8.1.1.4 Data buffering
+</h5>
+<p>
+
+
+<p>
+The implementation of the data buffering, with unlimited receive
+buffering (see section <A HREF="pandora_network_software_implementation.html#3.3.5.2">3.3.5.2</A>), and with
+the T4 card the transmit buffer limiting (section <A HREF="pandora_network_software_implementation.html#3.4">3.4</A>), is supposed to fulfill principle
+<A HREF="networking_for_pandora_boxes.html#2.3.5">2.3.5</A>. From the results in section
+<A HREF="results_of_pandora_experiments.html#7.3">7.3</A>, the former is not expected to have any
+visible effect, as the server card is never overloaded, and therefore
+will continue to sink the received data faster than it is received
+over the network.
+
+<p>
+The transmit buffer limiting, however, was introduced because the CFR
+network was slower than the video capture, and the buffer limiting
+did indeed remove the artifacts described in section
+<A HREF="networking_for_pandora_boxes.html#2.2.3.3">2.2.3.3</A>. Once the ATM card was in use the video
+capture became the bottleneck (see section <A HREF="results_of_pandora_experiments.html#7.4">7.4</A>), so
+the buffer limiting remains out of operation.
+
+<p>
+<A NAME="8.1.1.5"></A><h5>
+8.1.1.5 Data bandwidth
+</h5>
+<p>
+
+
+<p>
+Principle <A HREF="networking_for_pandora_boxes.html#2.3.6">2.3.6</A> requires that different
+bandwidth streams be supported, from under 100kbps to over 2Mbps. The
+implementation, with its emphasis on low per-block overheads and no
+copying of data, provides the required support, as is borne out by the
+results shown in section <A HREF="results_of_pandora_experiments.html#7.3.4">7.3.4</A>.
+
+<p>
+From the point of view of a user, with the CFR network subsystem the
+network is a bottleneck, and this always leads to questioning of the
+support for the highest possible bandwidth. Simple tests, such as
+changing the ring size, show that it is the CFR network itself which
+limits the bandwidth. Indeed, with the 100Mbps ATM network the
+Pandora network subsystem can sink all the data produced by the rest
+of the Pandora box, and still receive data from other Pandora systems
+without degradation: the 100Mbps ATM network subsystem is faster than
+Pandora internals, and the user's perception is that of seamless
+integration with other systems.
+
+<p>
+It is worth noting that the bandwidth required by Pandora's audio
+streams of 136 kbps is so small compared to the achieved network
+transit rate of about 3 Mbps for audio streams that it is unlikely any
+problems with the audio would ever be seen on the ATM network.
+
+<p>
+<A NAME="8.1.1.6"></A><h5>
+8.1.1.6 Data priorities
+</h5>
+<p>
+
+
+<p>
+The support for principle <A HREF="networking_for_pandora_boxes.html#2.3.7">2.3.7</A> differs
+between the CFR network and ATM network subsystems, with the CFR
+network subsystem providing fine-grained prioritising of stream
+transmission (see section <A HREF="pandora_network_software_implementation.html#3.3.4.3">3.3.4.3</A>),
+while the 100Mbps ATM network's high bandwidth relieves the ATM
+network subsystem of those requirements. Both, however, try to balance
+transmission and reception by using equal priority transputer
+processes at the slave transputer level, while tilting that balance
+towards receive priority at the higher levels (see section
+<A HREF="pandora_network_software_implementation.html#3.3.4.3">3.3.4.3</A>).
+
+<p>
+Again, as the ATM network supplies such a high bandwidth connection,
+yet the Pandora internals provide less data than the network subsystem
+can manage, the prioritising is not visible in the ATM network
+subsystem. However, the CFR network subsystem shows the stream
+prioritising to good effect; when the network becomes overloaded, the
+audio streams operate well, with the video performance being degraded
+as lower priority.
+
+<p>
+<A NAME="8.1.1.7"></A><h5>
+8.1.1.7 Data latency
+</h5>
+<p>
+
+
+<p>
+Principle <A HREF="networking_for_pandora_boxes.html#2.3.8">2.3.8</A> specifies strict constraints for
+latency of data transport. The support for these constraints include
+the balance in the slave software (see section <A HREF="pandora_network_software_implementation.html#3.2">3.2</A>)
+between buffering (for high bandwidth) and latency; the design
+requiring no copying of data (see section
+<A HREF="pandora_network_software_implementation.html#3.3.2.3">3.3.2.3</A>); latency control with selection of
+the priority of streams, section
+<A HREF="pandora_network_software_implementation.html#3.3.4.3">3.3.4.3</A>; a small overhead for each
+block, see section <A HREF="pandora_network_software_implementation.html#3.3.6.5">3.3.6.5</A>.
+
+<p>
+The final result seems to be good, as the latency is low (2ms) even
+for the high bandwidth video, and the perception from a user's view is
+instantaneous transfer. The figure in section
+<A HREF="results_of_pandora_experiments.html#7.3.4">7.3.4</A> of 96 microseconds for the overhead of a
+block, with 45 microseconds per cell of a block, can be used to
+determine suitable block sizes for desired latencies, if necessary.
+
+<p>
+<A NAME="8.1.1.8"></A><h5>
+8.1.1.8 Data jitter
+</h5>
+<p>
+
+
+<p>
+In principle <A HREF="networking_for_pandora_boxes.html#2.3.9">2.3.9</A> the jitter of a stream is
+required to be small: the real value depends on the stream type (video
+of significantly less than one inter-frame time, audio covered by
+downstream buffering and such that the latency requirement is not
+exceeded). The support for jitter control is generally implicit in the
+design rather than through particular aspects of the design, but there
+are some specific areas: section <A HREF="pandora_network_software_implementation.html#3.2.3">3.2.3</A>
+identifies the immediate removal of receive data from the CFR chip
+FIFO, which is supported by the prioritising of the CFR slave
+software; the data transfer from master transputer to slave
+transputer multiplexes streams, see section
+<A HREF="pandora_network_software_implementation.html#3.3.4.3">3.3.4.3</A>; the reassembly process
+(section <A HREF="pandora_network_software_implementation.html#3.3.5.1">3.3.5.1</A>) also maintains the multiplexing of
+streams.
+
+<p>
+The outcome is that jitter in audio over ATM (section
+<A HREF="results_of_pandora_experiments.html#7.3.4">7.3.4</A>) is seen to be usually within 40
+microseconds, although higher values are seen (up to 100
+microseconds), all of which are less than a single sample time, and
+therefore will be no problem at all. Jitter in the video is larger
+(150 microseconds), with the worst recorded case of 200 microseconds:
+however, milliseconds of jitter are allowed.
+
+<p>
+<A NAME="8.1.2"></A><h4>
+8.1.2 Accurate distribution of a precise global clock
+</h4>
+<p>
+
+
+<p>
+The widest conclusion that can be reached is that accurate access to a
+precise global clock is immeasurably useful for the performance
+evaluation of a distributed multimedia system. The task is not
+difficult, and the precision and accuracy acheived can be good with a
+simple implementation. ATM networks provide a very good distribution
+mechanism and GPS is a very good clock source. It is an ideal way to
+base an examination of the performance of any distributed system.
+
+<p>
+For Pandora, the clock distribution led to a much better understanding
+of how the system works, and also to uncovering performance-degrading
+bugs in the underlying networks. Without the accuracy of the clock
+distribution, the real effectiveness of the subsystems of Pandora
+would still be a mystery.
+
+<p>
+<A NAME="8.2"></A><h3>
+8.2 Scope of the conclusions
+</h3>
+<p>
+
+
+<p>
+Although the network principles were derived from a detailed
+examination of the Pandora system, and were tested in a network
+subsystem for that system, it is believed that the network principles
+defined in this thesis extend beyond Pandora, into the network
+subsystems for any multimedia communication system.  Some of the
+specific details are affected by the bandwidths of the data streams
+that Pandora requires; others by the nature of the control structures
+of Pandora, which may well not apply in other multimedia systems.
+Similarly, the work performed with global clock distribution has
+applications outside the Pandora world, wherever evaluation of real-time distributed systems is required.
+
+<p>
+<A NAME="8.3"></A><h3>
+8.3 Further work
+</h3>
+<p>
+
+
+<p>
+One minor aim of this dissertation is to complete the documentation of
+the Pandora system, and the network subsystem work for Pandora is now
+over. The network principles underpinning the design need to be
+implemented in other systems, such as those using H.261 video coding
+(<B><A HREF="bibliography.html#Bib42">[42]</A></B>) or MPEG-2 (<B><A HREF="bibliography.html#Bib41">[41]</A></B>), and their performance
+examined further to test their validity. The precise, accurate global
+clock distribution work has only just started: this section draws
+attention to a few of the areas which need more detailed work.
+
+<p>
+<A NAME="8.3.1"></A><h4>
+8.3.1 Different physical layers
+</h4>
+<p>
+
+
+<p>
+The ATM Forum has currently defined 6 different physical media for ATM
+transport supporting 10 different bit rates ranging from 1.544Mbps to
+622.08Mbps <B><A HREF="bibliography.html#Bib58">[58]</A></B>. Different ATM switches use different
+architectures. Much more work is needed to discover how effectively
+the global clock distribution can be performed outside the particular
+world that the current experimentation has used. Many questions, such
+as how SONET framing or low bandwidth on some links inside an ATM
+switch network effect the performance of the distribution, and what
+extra support for clock distribution could be implemented in switches
+or nodes themselves.
+
+<p>
+<A NAME="8.3.2"></A><h4>
+8.3.2 Inter-stream synchronisation
+</h4>
+<p>
+
+
+<p>
+There are standards for constant bit rate and variable bit rate
+traffic streams on ATM networks. <B><A HREF="bibliography.html#Bib61">[61]</A></B> and <B><A HREF="bibliography.html#Bib25">[25]</A></B>
+present possible strategies for admission control, and through these
+delay guarantees, which may help inter-stream synchronisation. Both of
+these may reduce the need for global clock distribution, but at the
+same time the accuracy of the clock distribution could be improved by
+the same guarantees.
+
+<p>
+<A NAME="8.3.3"></A><h4>
+8.3.3 Applications of the global clock
+</h4>
+<p>
+
+
+<p>
+The main reason for an examination of the possibility of supporting a
+global clock was to aid synchronisation of streams. This work still
+needs to be done. Many papers have been published on the problems of
+synchronisation, from the presentation level using scripts to control
+computerised slide-shows, down to the inter-stream synchronisation for
+real-time playback or communication of multimedia (e.g. <B><A HREF="bibliography.html#Bib70">[70]</A></B>,
+<B><A HREF="bibliography.html#Bib53">[53]</A></B>, <B><A HREF="bibliography.html#Bib71">[71]</A></B>). Most solutions that
+are presented use some explicit form of data connection between a
+synchronisation subsystem and the data sinks. With a distributed
+global clock these synchronisation subsystems may be removed, and
+synchronisation performed by the sinks themselves. However, the sinks
+then require full knowledge of the global replay times of the various
+data blocks they will receive: in a sense, they require their own
+script. For real-time multimedia communications this is not a problem, but for
+presentation-level synchronisation it may not be the best solution.
+
+<p>
+Additionally, there are applications made possible by the accuracy and precision of
+the distributed clock that need to be examined. For example, the human
+ear is extremely sensitive, and to support very high quality audio the
+synchronisation between left and right speakers in stereo pairs needs
+to be very accurate. With more sophisticated audio systems becoming
+more widespread, with many more speakers, the synchronisation burdens
+increase. Is it possible to distribute the speakers on a network,
+rather than having a single audio node on the network into which all
+the speakers should be plugged?
+
+<p>
+<A NAME="8.3.4"></A><h4>
+8.3.4 Performance evaluation of commercial systems
+</h4>
+<p>
+
+
+<p>
+There are now quite a few multimedia communication systems
+commercially available. The quality varies dramatically, from high
+bandwidth motion JPEG compressed images using up to 20Mbps data rates,
+to H.261 coded streams of 64kbps or Intel Indeo encoded video of
+0.5Mbps. These systems are ideal subjects for performance evaluation,
+perhaps using the global clock distribution to timestamp appropriate
+ATM cell arrival times at switches.
+
+<p>
+<A NAME="8.4"></A><h3>
+8.4 Final summary
+</h3>
+<p>
+
+
+<p>
+The results of this thesis can be summarised in three points. Firstly,
+simple precise, accurate global clock distribution is not difficult
+using ATM networks with a GPS clock source, and it is very
+useful. Secondly, real-time multimedia communication systems based on
+the principles presented in this thesis should work well, as Pandora
+does. Thirdly, complex real-time distributed systems do not
+necessarily work as intended, as the Pandora box, although fine-tuned
+for high bandwidth video data with FIFO's between source, switch and
+sink, does not perform as well as its designers believed it did: with
+the ATM network card the network itself has been shown to be no longer
+a bottleneck in the system, rather the video subsystem significantly
+underperforms.
+
+<p>
+
+
+
+<p>
+
+
+<p>
+
+
+<p>
+
+
+<p>
+<p>
+</body></html>

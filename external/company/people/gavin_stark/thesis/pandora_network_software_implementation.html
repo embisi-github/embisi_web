@@ -1,0 +1,1970 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<title>
+Pandora network software implementation</title>
+</head>
+<body background="grey.jpg">
+<h1 align=center>
+<A NAME="3"></A>Chapter 3 : Pandora network software implementation</h1>
+
+
+
+<p>
+
+
+<p>
+ This chapter describes the implementation of the networking software
+for the Pandora system. There have been four different hardware
+subsystems that Pandora has used for its network: the first
+implementation used the server card for the network and supported UDL;
+the remaining three put the network subsystem onto a seperate card for
+better performance, and supported MSNL <B><A HREF="bibliography.html#Bib23">[23]</A></B>. The hardware of
+all four is described in the first section.  The software for the last
+three hardware implementations is the basis for all the work in the
+thesis, and all three implementations have used the same basic
+structure; the following two sections therefore describe in detail the
+first of the three implementations, with the differences between the
+implementations described in the last section.
+
+<p>
+ Throughout the chapter the term `host' is used to refer to the system
+which uses the network subsystem: in the case of Pandora this is the
+server card.
+
+<p>
+<A NAME="3.1"></A><h3>
+3.1 Hardware descriptions
+</h3>
+<p>
+
+
+
+<p>
+The Pandora networking subsystem has had four phases:
+
+<p>
+<UL>
+
+
+<p>
+<LI>Server-based CFR interface
+
+<p>
+ Initially the server card contained a CFR interface, and network
+access using UDL (Unison Data Link, <B><A HREF="bibliography.html#Bib13">[13]</A></B>) was handled by
+the server software. The server processor had to handle interrupts
+from the CFR chip for transmission and reception, and perform
+segmentation and reassembly of segments to fit the 28-byte data size
+of the UDL payloads, in addition to its stream switching requirements.
+
+<p>
+</LI>
+<LI>16-bit CFR network card (the T2 card)
+
+<p>
+
+
+
+
+
+<A HREF="ps/t2hard.ps"> Figure 3.1 : T2 CFR network card hardware</A><A NAME="Fig3.1"></A>
+
+
+
+<p>
+To improve the network performance of the Pandora system an extra
+network card was designed containing two T222 transputers
+<B><A HREF="bibliography.html#Bib31">[31]</A></B>, one with 64 kilobytes of DRAM, the other with only 4
+kilobytes of internal RAM.  This latter processor <B><A HREF="bibliography.html#Bib15">[15]</A></B> acts as an
+intelligent interface and buffer to the CFR CMOS ASIC (<B><A HREF="bibliography.html#Bib51">[51]</A></B>,
+<B><A HREF="bibliography.html#Bib3">[3]</A></B>), see figure <A HREF="pandora_network_software_implementation.html#Fig3.1">3.1</A>. The two processors are
+connected together with two INMOS OS-links. With one of the OS-links
+of the main processor connected to the server transputer there is a
+spare link for debugging. Also there is a 6 bit latch writable by this
+processor, of which two outputs drive LEDs. The other transputer has
+access to a 16 character LED display, for informational purposes or
+debugging.
+
+<p>
+</LI>
+<LI>32-bit CFR network card (the T4 card)
+
+<p>
+
+
+
+
+
+<A HREF="ps/t4hard.ps"> Figure 3.2 : T4 CFR network card hardware</A><A NAME="Fig3.2"></A>
+
+
+
+<p>
+The third version of the network card hardware replaces the main
+processor of the previous card with a T425 transputer with more
+memory, 2 megabytes, while retaining the CFR-controlling T222
+transputer (see figure <A HREF="pandora_network_software_implementation.html#Fig3.2">3.2</A>). This enhancement was mainly to
+add to the speed of the network interface, which it was felt was still
+a bottleneck. Fortunately after the upgrade to this board, and
+appropriately rewritten code, the network interface (i.e. CFR CMOS
+ASIC) itself seems to be the bottleneck.
+
+<p>
+</LI>
+<LI>32-bit ATM network card
+
+<p>
+
+
+
+
+
+<A HREF="ps/atmhard.ps"> Figure 3.3 : T4 ATM switch network card hardware</A><A NAME="Fig3.3"></A>
+
+
+
+<p>
+ The fourth version of the network card hardware is similar to the
+previous card with the same processors, but with a 16-bit ORL ATM
+fast packet switch network interface instead of a CFR interface (see figure
+<A HREF="pandora_network_software_implementation.html#Fig3.3">3.3</A>). The 16-bit ATM switch network interface consists of a
+16-bit wide FIFO for cells for transmission and a 16-bit wide FIFO for
+cells for reception. These FIFOs are connected to a Xilinx FPGA, which
+is coupled to two AMD Taxi chip parts <B><A HREF="bibliography.html#Bib4">[4]</A></B> to serialise and
+deserialise the cell data. (The Taxi chips were designed for FDDI, but
+are encompassed by the ATM Forum for 100Mbps multimode fibre
+<B><A HREF="bibliography.html#Bib1">[1]</A></B>. In this application 50Ohm coaxial cable is used
+as an alternative physical layer, and the transmission convergence
+layer uses additonal
+hardware handshaking <B><A HREF="bibliography.html#Bib40">[40]</A></B>.) The T222 transputer has access
+to the control signals generated by the FPGA, and the FIFO flags, so
+it can cope with disconnections from the network, a blocked local
+switch, and other local network failures. In addition, for reliable
+continuous running of a physically remote ATM network object, the T425
+transputer can reset itself and surrounding boards. The T222
+transputer can still access the 16 character LED display, as for the
+previous two boards, but it can also act as the master on an I^2C
+bus, to which a 128 byte EEPROM is connected.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+ In the three cases of the seperate network cards, the main processor
+(T425 with two megabytes or T222 with 64 kilobytes of memory) is termed
+the master processor, and the other T222 transputer is termed the
+slave processor. The slave processor has a 32 kilobyte EPROM, from
+which the network card processors can boot.
+
+<p>
+<A NAME="3.2"></A><h3>
+3.2 CFR slave transputer software structure
+</h3>
+<p>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/t2slave.ps"> Figure 3.4 : CFR slave transputer software structure</A><A NAME="Fig3.4"></A>
+
+
+
+<p>
+ The CFR slave software <B><A HREF="bibliography.html#Bib14">[14]</A></B> was written by David Clarke
+prior to the start of the research for this thesis. It is described in
+this chapter because of its close relationship to the master
+transputer software that is the main part of this chapter, and also
+for comparison with the ATM slave software which is part of the
+research. The CFR slave software could have been rewritten as part of
+the research, but after a detailed examination of its structure and
+implementation with regard to the network requirements of the Pandora
+system the decision to retain David Clarke's work was made.
+
+<p>
+ The CFR slave software provides limited buffering of CFR packets for
+both transmission and reception. It consists of five main processes: a
+transmit buffer, a receive buffer, a command buffer, a message buffer
+and an interrupt handler. The transmit buffer and interrupt handler
+share access to a two-packet-long transmit queue. The receive buffer
+and interrupt handler share access to a two-packet-long receive queue.
+
+<p>
+ Communication to the master transputer occurs over two
+OS-links. Although the links are bidirectional, because of the
+communication protocol used by the OS-link hardware with an
+acknowledge bit pair in the reverse direction per byte transferred
+<B><A HREF="bibliography.html#Bib33">[33]</A></B>, the two high bandwidth channels, of transmit and
+receive data, are not placed onto the same OS-link. Instead, one
+OS-link is used for the transmit data to the slave and messages from
+the slave. The other link carries the receive data from the slave and
+commands to the slave.
+
+<p>
+<A NAME="3.2.1"></A><h4>
+3.2.1 Interaction with the master transputer
+</h4>
+<p>
+
+
+<p>
+ The transmit buffer waits to receive a packet from the master
+transputer over an OS-link into one of the two transmit queue
+entries. It then generates an interrupt to inform the interrupt
+handler of the valid transmit buffer entry, before looking for another
+packet from the master transputer, which would be read into the other
+transmit queue entry. Should this second packet be received before the
+interrupt handler has finished with the previous packet the transmit
+buffer will inform the interrupt handler, blocking on that
+communication until the interrupt handler is ready. At this point the
+first transmit queue entry will no longer be in use, as the packet
+data will have been transmitted, so the transmit buffer again looks
+for a packet from the master transputer. If the master transputer does
+not keep on sending packets the transmit buffer will restart, waiting
+for a packet and generating an interrupt. This mechanism reduces the
+number of interrupts and inter-process communications required over
+simpler methods, hence improving performance.
+
+<p>
+ The receive buffer is informed by the interrupt handler whenever a
+packet has been received into the two-packet-long receive queue, and
+it forwards the packet to the master transputer over an OS-link. The
+other entry in the receive queue can be filled by the interrupt
+handler while this is happening, so providing a little decoupling of
+the reception of packets by the CFR interface from the master
+transputer.
+
+<p>
+ The command buffer accepts commands from the master transputer over an OS-link,
+generating an interrupt to inform the interrupt handler whenever this
+occurs. The commands provide full access to the CFR interface as well
+as software initialisation and writing to the 16 character LED
+display.
+
+<p>
+ The message buffer provides a path from the interrupt handler to the
+master transputer over an OS-link for responses to commands and for messages about
+asynchronous events, like ring breaks. It provides a single stage of
+decoupling so the interrupt routine may continue to execute while the
+master transputer is given a message.
+
+<p>
+<A NAME="3.2.2"></A><h4>
+3.2.2 Interrupt handling
+</h4>
+<p>
+
+
+<p>
+ The interrupt handler does most of the work. There are six interrupt
+sources: the transmit buffer; the command buffer; four interrupt pins
+on the CFR CMOS ASIC (ring broken, packet transmit FIFO empty, packet
+receive FIFO full, packet TOGged). The interrupt sources are
+prioritised in software into the following order (highest priority
+first):
+
+<p>
+<UL>
+
+
+<p>
+<LI>Ring broken (framing error)
+
+<p>
+If the CFR framing structure is not correct the CFR CMOS ASIC reports
+this by raising the ring broken interrupt. The interrupt handler
+responds to this by masking out the CFR interrupts to prevent more
+failures occuring before the master transputer has responded. The
+master transputer is informed of the failure, and when it has
+recovered from this it must turn the CFR interrupts back on with the
+appropriate command to the slave transputer.
+
+<p>
+</LI>
+<LI>Packet received by CFR (receive FIFO full)
+
+<p>
+ When a packet is received by the CFR chip from the ring it is placed
+in the receive FIFO. This FIFO is only one packet deep, so to get the
+best receive performance from the interface this interrupt must be the
+highest priority (of the frequent interrupts). When it occurs the
+packet is copied from the FIFO into the receive queue and the receive
+buffer process is informed. Should the receive buffer still be
+transmitting the other receive queue entry to the master transputer,
+the interrupt handler will block, waiting for the receive buffer to
+complete the transfer and collect the new packet. In this way no data
+is thrown away inside the slave transputer on reception: the CFR
+interface may fill the receive FIFO again, and if another packet
+arrives on the ring which should be received the CFR interface will
+mark it as TOGged, forcing retransmission. (TOG stands for Thrown On the Ground.)
+
+<p>
+</LI>
+<LI>Packet TOGged by the CFR
+
+<p>
+When an attempt to transmit a packet on a VCI has failed, perhaps
+because the receiver's FIFO is full or no other node is listening on
+the VCI, the packet transmission will be retried a certain number of
+times. If all the retries fail the CFR CMOS ASIC raises the TOG
+interrupt and its ``transmit fifo empty" interrupt. To correctly
+inform the master transputer that a transmission has failed the TOG
+interrupt is handled first, at higher priority than the transmit
+interrupt. It causes a transmission failure message to be generated to
+the master transputer, and it sets a flag to suppress the generation
+of a success message on the following transmit interrupt.
+
+<p>
+</LI>
+<LI>Packet transmit FIFO empty
+
+<p>
+This interrupt is used by the slave transputer to indicate a packet
+has been sent by the CFR CMOS ASIC and that there is space for the
+next packet to be transmitted. If a previous TOG interrupt has not
+occurred the interrupt handler deduces the last packet inserted into
+the FIFO has been successfully transmitted, and informs the master
+transputer of that fact. The interrupt handler then checks to see if
+the transmit queue shared with the transmit buffer process contains
+another packet for transmission, in which case that packet is inserted
+into the CFR CMOS ASIC.
+
+<p>
+This interrupt is only enabled if a packet has been inserted into the
+CFR CMOS ASIC's transmit FIFO.
+
+<p>
+</LI>
+<LI>Transmit request from transmit buffer
+
+<p>
+If the transmit buffer receives a packet from the master transputer
+for transmission on the CFR after an idle period, the transmit buffer
+generates this interrupt to alert the interrupt handler. The interrupt
+handler then takes the new packet from the transmit queue and inserts
+it into the CFR CMOS ASIC, and enables the packet transmit FIFO empty
+interrupt.
+
+<p>
+</LI>
+<LI>Command from command buffer
+
+<p>
+In a similar manner to transmit buffer interrupts, commands received
+from the master transputer will cause the command buffer to generate
+an interrupt. This causes the interrupt handler to request the
+received command from the command buffer, and then to obey it.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+<A NAME="3.2.3"></A><h4>
+3.2.3 Priorities and overload
+</h4>
+<p>
+
+
+<p>
+
+
+<p>
+ The interrupt handler and receive buffer operate at high priority,
+and thus run in preference to the other processes, and are not
+preemptable. This helps enforce receive priority over transmissions
+(see principle <A HREF="networking_for_pandora_boxes.html#2.3.7">2.3.7</A>).
+
+<p>
+ However, it should be noted that a snapshot of the interrupt sources
+is taken at the time the interrupt handler is scheduled, and the
+active interrupt sources in the snapshot are all acted upon before a
+new snapshot will be taken. So continuous receive interrupts do not
+stop command interrupts just because the receive interrupt has a
+higher priority. This helps to fulfil the stream independence
+principle (see principle <A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>).
+
+<p>
+The CFR will introduce jitter in network transfers, especially if the
+receiver for a cell has not emptied its receive FIFO from a previous
+cell, so the fast removal of data from that FIFO helps keep the jitter
+low (see principle <A HREF="networking_for_pandora_boxes.html#2.3.9">2.3.9</A>). The simplicity of the
+software design and prioritising of the receive buffer and interrupt
+handler help in that respect.
+
+<p>
+The buffering in the slave software has to be kept small due to memory
+restrictions, but it is tuned to the smallest required to acheive the
+CFR bandwidth. This is a balance between data bandwidth and data
+latency principles (<A HREF="networking_for_pandora_boxes.html#2.3.6">2.3.6</A> and
+<A HREF="networking_for_pandora_boxes.html#2.3.8">2.3.8</A>).
+
+<p>
+It should also be noted that the CFR provides guaranteed delivery of
+data which is transmitted, and the slave software never discards data
+or messages, so data reliability comes for free (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.4">2.3.4</A>), and any overload in the network is
+reflected implicitly for the master transputer to handle, where more
+knowledge of the data conditions means the complexity of the handling
+of overload is less and the chances of reporting it correctly to the
+host are higher (principle <A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>).
+
+<p>
+<A NAME="3.3"></A><h3>
+3.3 Master transputer software structure
+</h3>
+<p>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/t2network.ps"> Figure 3.5 : Master transputer software structure</A><A NAME="Fig3.5"></A>
+
+
+
+<p>
+This section describes the implementation of the master transputer
+software for the first CFR network card containing two 16-bit T222
+transputers. The software divides neatly into six parts: host
+interaction; slave control; data transmission; data reception;
+connection management; debugging facilities. A section for each is split into
+descriptions of its seperate processes, followed by an examination of how
+the network principles affected their design. Firstly, however, there
+are some issues common to all the software design.
+
+<p>
+<A NAME="3.3.1"></A><h4>
+3.3.1 Master transputer fundamentals
+</h4>
+<p>
+
+
+<p>
+<A NAME="3.3.1.1"></A><h5>
+3.3.1.1 Buffer allocation
+</h5>
+<p>
+
+
+
+<p>
+The remains of the memory not required by stack space, data space or
+program code is used as the data buffer. The buffer memory in the last
+implementation of the T2 card's code is 37 kilobytes long. It is
+divided into areas 36 bytes long, all initially placed on a free
+list. These areas are used to contain lists of data packets for
+transmission or reception. A block of data for transmission or
+reception is defined by a single header area, which contains fields
+describing which connection the data belongs to, block size, etc., and
+a pointer to the packets of data which form the actual data of the
+block. Each packet of data for a block takes one 36 byte area, and the
+packets are joined together as a linked list (the 36 bytes is divided
+into 32 bytes of data, and the linked list pointer).
+
+<p>
+Allocation of the buffers from the free list, and deallocation to the
+free list, must be done by high priority processes, so that the
+transactions are atomic. Those processes which are not run at high
+priority must use a high priority allocation process to perform the
+alllocation and deallocation from the global area. This is the case
+for the <I> connection management</I> and host interaction processes.
+
+<p>
+The buffer allocation strategy was chosen as the available buffer
+space (e.g. 37 kilobytes) is not large compared to the size of blocks
+of data required to pass through it (see section
+<A HREF="networking_for_pandora_boxes.html#2.1.3.2">2.1.3.2</A>). An alternative strategy considered was to
+divide the area into video sized blocks (larger than 4096 bytes), and
+small audio or command sized blocks (less than 128 bytes), and
+allocate from these. This has the disadvantage of limiting the buffer
+space for video data to, for example, eight segments (32
+kilobytes). This must include all segments being transmitted (arriving
+from the host and segmented into the slave), and those being received
+(reassembled from the network and transmitted to the host). Control of
+the segments being transmitted could be performed by managing input
+from the host. However, arrival of many segments from many sources on
+the network may occur simultaneously, and it is quite reasonable to
+expect up to eight segments to be being received or delievered to the
+host at one time. Should nine segments need to be received, one would
+have to be discarded at its beginning, even though the buffer space
+may become available as another segment completes its journey to the
+host. The chosen strategy also provides some independence of
+transmission and reception of data. The system would have to be much
+more heavily loaded for the transmission of blocks to fail due to the
+allocation to received blocks, or vice versa --- the apparent buffer
+space is greater under the chosen scheme, as blocks for transmission
+may be freed in parts as their packets are successfully transmitted,
+and the exact amount of data for incoming segments can be allocated as
+the packets arrive. Another benefit is that each stream can have
+different buffer sizes allocated to it at no extra cost, so providing that
+quality of service parameter per stream, as required by principle
+<A HREF="networking_for_pandora_boxes.html#2.3.3">2.3.3</A>.
+
+<p>
+<A NAME="3.3.1.2"></A><h5>
+3.3.1.2 Message and command structure
+</h5>
+<p>
+
+
+
+<p>
+Commands and messages inside the master transputer software, as well
+as those to and from the host, are always of the form <I> length in
+words of command; command type; command arguments...</I>; this includes
+data blocks for transmission. The word size used by the commands and
+messages is 16 bits, as the master transputer is a 16-bit T222
+transputer.
+
+<p>
+Command types include connection maintenance (make and kill), system
+maintenance (reset), informational (connection status interrogation,
+transmit/receive status) and data transmit. Message types correspond
+in general to the command types, as commands will usually generate a
+message. They include connection maintenance (made, killed, timed
+out), system maintenance (system reset okay, reset failed, network
+failed), informational (alive, transmission information, reception
+information) and data received.
+
+<p>
+Commands and messages are specified to be of a maximum length of 32
+words, except for data handling commands/messages, whose length can be
+up to the maximum transmittable/receivable by the master transputer software.
+
+<p>
+Messages can be routed either to the host OS-link or to the debugging
+OS-link, by using a lookup table indexed by the message number: many
+messages would be ignored by the host, and are useful for debugging,
+whereas other messages must be sent to the host for correct
+operation. Some messages lie in a grey area, where they may be of
+interest to either system, and so the destination may be changed. This
+mechanism also allows unrequired messages to be discarded by being
+sent to a message sink. This all helps to fulfil the principle
+<A HREF="networking_for_pandora_boxes.html#2.3.1">2.3.1</A>.
+
+<p>
+<A NAME="3.3.1.3"></A><h5>
+3.3.1.3 Handshaking buffers
+</h5>
+<p>
+
+
+
+<p>
+The occam message passing system (<B><A HREF="bibliography.html#Bib8">[8]</A></B>) supplies unbuffered
+message passing between processes.  This provides a simple way of
+synchronising processes, which can be useful. However, it is
+frequently the case that a process needs to be designed so that it
+never blocks on an output channel, as it may have critical time paths
+on its input channels. To accomodate this it is a common practice to
+insert handshaking buffers on these channels <B><A HREF="bibliography.html#Bib9">[9]</A></B>. These use
+an additional back channel to indicate that the handshaking buffer may
+accept another message. After placing a message into the buffer,
+sending another is not possible until the buffer has returned with
+this handshake. This places an additional performance penalty onto the
+user of the buffer, as another input channel must be monitored, so
+their use must be carefully thought out.
+
+<p>
+<A NAME="3.3.2"></A><h4>
+3.3.2 Host interaction
+</h4>
+<p>
+
+
+<p>
+The processes which interact with the host perform two
+operations. Firstly they simply provide the decoupling required by the
+host (in Pandora, the server card): any overload conditions in the
+master transputer software will not effect the server as badly as it
+might due to the buffering the presence of the processes
+provides. Secondly they provide block disassembly and reassembly for
+data transmission and reception.
+
+<p>
+To provide buffer allocation (for <I> buffer from host</I>) and buffer
+freeing (for <I> buffer to host</I>) there are two suitable processes which are not included
+in figure <A HREF="pandora_network_software_implementation.html#Fig3.5">3.5</A>. Both are high priority (so their operations
+are atomic, see section <A HREF="pandora_network_software_implementation.html#3.3.1.1">3.3.1.1</A>).
+
+<p>
+<A NAME="3.3.2.1"></A><h5>
+3.3.2.1 Buffer from host
+</h5>
+<p>
+
+
+<p>
+Commands from the host are read by the <I> buffer from host</I> process. The length
+field and first two words of the message are read first into local
+workspace. The command type is then examined to see if the command is
+for transmitting data, in which case a large command must be
+expected. If not, the rest of the command is read into a local buffer
+of fixed size, then forwarded to the <I> connection management</I>
+process. This may cause the buffer process to block, which is
+undesirable, but the <I> connection management</I> process is designed
+to be ready for commands at all times, so it should not block for
+long.
+
+<p>
+A data transmission command from the host requires the allocation of
+areas from the buffer memory. A header block is allocated, into which
+the connection to which the buffer belongs is written. Blocks are then
+allocated, filled with the data by reading directly into them from the host,
+and then they are linked together. The header block is set
+to point to this buffer data, and a command is sent to the <I>
+connection management</I> process for it to validate and execute the
+transmission.
+
+<p>
+<A NAME="3.3.2.2"></A><h5>
+3.3.2.2 Buffer to host
+</h5>
+<p>
+
+
+<p>
+Messages from the <I> connection management</I> process which are
+destined for the host are sent to the other host buffering process,
+<I> buffer to host</I>, which is a handshaking buffer (see section
+<A HREF="pandora_network_software_implementation.html#3.3.1.3">3.3.1.3</A>).  This takes the message and transmits it
+directly on to the host, unless the message type is <I> data
+received</I>.  Then the message includes a data handle and a pointer to
+the block descriptor for the received data. The buffer generates a
+message of type <I> data coming</I> which it sends to the host,
+describing the stream and size of the coming data. Then a <I> data
+received</I> message header is generated and sent. Finally the data
+portion of the message body is sent directly from the list of buffer
+areas pointed to by the block descriptor.
+
+<p>
+Once a message has been sent to the host the buffer sends an
+acknowledgement signal back to the <I> connection management</I>
+process, so that it knows when it can send another message through the
+host buffer without blocking.
+
+<p>
+<A NAME="3.3.2.3"></A><h5>
+3.3.2.3 Network principles in action
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+The host interaction processes are basically pipes, and so do not
+handle any prioritising nor provide complicated management of different
+streams --- this is left for the <I> connection management</I>
+process. However, the buffering processes do support some of the
+network principles in the following ways:
+
+<p>
+<UL>
+
+
+<p>
+<LI>Decoupling from server
+
+<p>
+The <I> buffer from host</I> process sinks the data from the server as
+quickly as possible. This continues even when the network or network
+software is overloaded, provided the <I> connection management</I>
+process has the capability to discard the data and messages it
+produces. In the same manner the network is decoupled from the server,
+should that be overloaded, by the <I> buffer to host</I> process. This
+helps satisfy the requirements of overload, principle
+<A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>, and decoupling the network from the
+server, principle <A HREF="networking_for_pandora_boxes.html#2.3.10">2.3.10</A>.
+
+<p>
+</LI>
+<LI>Guaranteed command and message delivery
+
+<p>
+The handshaking of the <I> buffer to host</I> process, and the blocking
+nature of the <I> buffer from host</I> process, provide a guarantee that
+all commands and messages are either delivered or a suitable message
+generated to indicate that delivery was not possible. This helps
+satisfy principle <A HREF="networking_for_pandora_boxes.html#2.3.4">2.3.4</A>, providing support
+for reliable data transport.
+
+<p>
+</LI>
+<LI>Low overhead for a data block
+
+<p>
+The handling of commands and messages for data transmission and
+reception is simple, and has a low overhead per data block, requiring
+only a fast buffer allocation/free operation and some parameter
+extraction. This low overhead is required for high bandwidth
+streams, and is a bonus for low bandwidth streams, as described in
+principle <A HREF="networking_for_pandora_boxes.html#2.3.6">2.3.6</A>. The mechanism for data
+transmission allows an overloaded stream's data to be discarded as it
+arrives from the server, the earliest possible point, as required by
+principle <A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>.
+
+<p>
+</LI>
+<LI>Latency proportional to size
+
+<p>
+Principle <A HREF="networking_for_pandora_boxes.html#2.3.8">2.3.8</A> states that there should be a low
+latency path for high priority streams. The latency of the host buffer
+processes depends entirely on the size of the data to be transferred,
+as it must all be buffered in the transputer's memory before being
+handled. To provide a low latency path, the blocks used by the host
+should therefore be small to keep to the principle.
+
+<p>
+</LI>
+<LI>No data copying
+
+<p>
+As the data is written into memory from the link on transmission, and
+read from memory to the link on reception, in lists suitable for the
+transmission and reception processes, no data copying is required
+throughout the rest of the system. This helps reduce the latency of
+the path (principle <A HREF="networking_for_pandora_boxes.html#2.3.8">2.3.8</A>) and, when the CPU or
+memory bus is the bottleneck, increases the bandwidth available
+(principle <A HREF="networking_for_pandora_boxes.html#2.3.6">2.3.6</A>).
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+
+
+<p>
+<A NAME="3.3.3"></A><h4>
+3.3.3 Slave control
+</h4>
+<p>
+
+
+<p>
+The CFR interface requires a great deal of maintenance if it is to
+operate correctly. The slave transputer provides a sensible interface
+to the CFR CMOS ASIC to make this simpler, and the slave command and
+message processes provide the overall management.
+
+<p>
+<A NAME="3.3.3.1"></A><h5>
+3.3.3.1 Slave command manager
+</h5>
+<p>
+
+
+<p>
+The <I> slave command manager</I> takes general commands from the <I>
+connection management</I> process (reset, open VCI, close VCI, check
+status, for example) and converts them into sequences of commands for
+the slave transputer. The replies that these commands generate, and
+any other messages the slave may generate, are also received by this
+process via the <I> transmitter</I> process. Any special messages are
+converted into real messages, using the full message structure
+described in section <A HREF="pandora_network_software_implementation.html#3.3.1.2">3.3.1.2</A>, and are forwarded to the <I> slave message
+buffer</I> process.
+
+<p>
+In the case of a reset command the full sequence of commands described
+in <B><A HREF="bibliography.html#Bib14">[14]</A></B> is performed. This provides a complete check of
+the local ring hardware, and some checking of the integrity of the
+ring itself. It takes about thirty seconds to complete.
+
+<p>
+At intervals of one second the <I> slave command manager</I> process also
+sends commands to the slave transputer to update the 16 character LED
+display with a string which resides in memory shared by all the
+processes on the master transputer. This lets any process display
+exceptional information for debugging purposes, and it allows some
+informational messages to provide users with confidence that 
+the network is working. This display has also been used for logging
+results of performance tests.
+
+<p>
+<A NAME="3.3.3.2"></A><h5>
+3.3.3.2 Slave message buffer
+</h5>
+<p>
+
+
+<p>
+The <I> slave message buffer</I> decouples the <I> slave command manager</I>
+process from the <I> connection management</I> process. It is a handshaking buffer (see
+section <A HREF="pandora_network_software_implementation.html#3.3.1.3">3.3.1.3</A>, and so buffers a
+single message from the <I> slave command manager</I> process, replying
+with an acknowledgement once it has successfully forwarded the
+message. In this way the <I> slave command manager</I> process does not
+block on attempting to send a message to the host, so the <I>
+connection management</I> process can always send commands to it without
+fear of blocking or even deadlock. The single exception to this is
+during reset, as it was decided that it should not be
+interruptable. In this case the <I> connection management</I> process
+must remember when it sent a reset command to the <I> slave command
+manager</I>, and send no more commands until it receives a reset reply in
+return from the <I> slave message buffer</I> process.
+
+<p>
+<A NAME="3.3.3.3"></A><h5>
+3.3.3.3 Network principles in action
+</h5>
+<p>
+
+
+<p>
+The management of the CFR does not effect the network features
+provided by the network software nor the requirements of the Pandora
+system. Indeed, the slave control software is basically an attempt to
+prevent the unreliable nature of the CFR from impacting on the Pandora
+system, by handling any unusual circumstances locally. This includes
+maintaining the ring interface, for example by periodically checking
+that the VCI map RAM is not `decaying', which tends to occur as the
+DRAM which contains it is not correctly refreshed by the hardware.
+
+<p>
+<A NAME="3.3.4"></A><h4>
+3.3.4 Data transmission
+</h4>
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/txlists.ps"> Figure 3.6 : List of transmittable streams</A><A NAME="Fig3.6"></A>
+
+
+
+<p>
+One of the most important aspects of the networking software is the
+management of data transmission. Not only should the maximum total
+possible bandwidth be achieved, but also the streams transmitted
+should be interleaved and prioritised for the best Pandora
+performance. To achieve this the data transmission is split into two
+processes. Both use and maintain the data structure in figure <A HREF="pandora_network_software_implementation.html#Fig3.6">3.6</A>,
+which shows that a list of transmittable streams is kept in order of
+priority; the list entry for each stream is then a list of block
+descriptors for transmission on that stream; each block descriptor is
+also a list, this time of packets for transmission with a header
+containing reassembly information, as created by the <I> buffer from
+host</I> process.
+
+<p>
+<A NAME="3.3.4.1"></A><h5>
+3.3.4.1 TX Queue handler
+</h5>
+<p>
+
+
+<p>
+When the <I> connection management</I> process decides to send a block
+of data, either given to it by the <I> buffer from host</I> process or
+generated internally, it sends the block descriptor to the <I> TX
+queue handler</I>. This process then adds it to the appropriate stream's
+list in the list of transmittable streams, creating a new stream list
+entry if the stream is not currently transmitting. If the <I>
+transmitter</I> process has marked itself as idle at this point then it
+will be sent a message to wake it up.
+
+<p>
+To perform all the list operations atomically, and so that the wake-up
+message may be generated without possible logic races, the
+<I> TX queue handler</I> process runs at high priority.
+
+<p>
+<A NAME="3.3.4.2"></A><h5>
+3.3.4.2 Transmitter
+</h5>
+<p>
+
+
+<p>
+The <I> transmitter</I> process is responsible for taking packets from the
+block descriptors in the list of blocks in the entries of the transmittable stream list,
+and sending them to the slave for transmission.
+
+<p>
+ In response to each packet given to the slave a message will be
+returned by the slave indicating the success or failure of the
+transmission of that packet. Under MDL (<B><A HREF="bibliography.html#Bib55">[55]</A></B> and
+<B><A HREF="bibliography.html#Bib56">[56]</A></B>), where out-of-sequence packets cannot be reassembled
+correctly, it is important to ensure that a packet from a block has
+been successfully transmitted before sending the next packet in that
+block. So in order to keep the CFR busy and hence the slave
+transputer's transmit FIFO full, the transmitter process may insert up
+to two packets into the slave from different streams. In cases where
+there are three or more streams with blocks for transmission the
+transmitter starts another buffer process, and maintains three packets
+in the transmission path at once.
+
+<p>
+If a packet should be successfully transmitted then it is removed from
+the first block of its stream's list, the next packet's reassembly information
+is computed, and the new packet is then sent into the transmission
+path. The old packet's buffer space is then freed. After
+successfully transmitting a whole block, the next block in that stream's list
+will be started on. Should there be no more blocks to transmit on that
+stream, the highest priority stream which is neither transmitting nor
+backed off will be started on.
+
+<p>
+If a packet is not transmitted correctly (i.e. it is TOGged) the
+slave's response will indicate this. The <I> transmitter</I> process then
+marks the stream as backed off. Some time later the stream will
+be marked again as ready, and transmission will restart at the failed
+packet. If the packet should be TOGged too many times the whole
+stream's data will be thrown away and the host informed, using the
+message channel to the <I> slave command manager</I>.
+
+<p>
+As all the messages from the slave must come to the <I> transmitter</I>
+process in case they refer to the success or failure of transmitting
+packets, any other messages must be forwarded to the <I> slave
+command manager</I> process. These messages tend to occur only in
+exceptional circumstances, but even so the <I> slave command manager</I>
+process has to be designed not to block the <I> transmitter</I> process if possible.
+
+<p>
+When idle the <I> transmitter</I> process will be waiting for a wake-up
+message from the <I> TX queue handler</I>. This message indicates the
+transmittable stream list is not empty.  Once awake the <I>
+transmitter</I> marks itself as no longer idle, and transmits the blocks
+for the transmittable streams. Should it ever empty the transmittable
+stream list it will mark itself as idle, and again wait for a wake-up
+message.
+
+<p>
+To provide the best transmission performance possible the <I> transmitter</I>
+process runs at high priority. By doing so it also allows atomic
+updates to the stream and block lists shared with the <I> TX queue
+handler</I> process, as well as atomic access to the global buffer area
+list for fast freeing of the transmitted packet data areas.
+
+<p>
+<A NAME="3.3.4.3"></A><h5>
+3.3.4.3 Network principles in action
+</h5>
+<p>
+
+
+
+<p>
+The data transmission processes provide prioritised transmission of
+data at the highest possible transmission rate. In their design the
+following were taken into account:
+
+<p>
+<UL>
+
+
+<p>
+<LI>Low cost overload handling
+
+<p>
+When the network destination for a stream is overloaded, the CFR TOG
+mechanism provides the <I> transmitter</I> process with appropriate
+feedback, which in turn allows the low cost overload handling that
+process implements (see principle <A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>).
+
+<p>
+</LI>
+<LI>Discards excess data
+
+<p>
+Also, when the network destination overloads and provides that
+feedback, the structure of buffer lists per stream backpressures the
+<I> connection management</I> process so that data which cannot be
+handled because of the overload will be discarded in the <I> buffer
+from host</I> process; if the destination is sufficiently overloaded so
+that data times out then the <I> transmitter</I> process discards all
+the buffers associated with that stream. These discard mechanisms help
+support the overload handling principle <A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>.
+
+<p>
+</LI>
+<LI>Low overhead per block and per stream
+
+<p>
+Both the transmission processes do very little extra work per data
+block and per stream on top of the actual data handling. This is
+required by principle <A HREF="networking_for_pandora_boxes.html#2.3.6">2.3.6</A>, to support high
+bandwidth streams.
+
+<p>
+</LI>
+<LI>No data lost without a message
+
+<p>
+With the CFR TOG mechanism and retransmission implemented in the <I>
+transmitter</I> process, all discarding of data in the transmission path
+is performed explicitly, and so all data lost can be reported to the
+host. This helps with the reliability of data transmission, principle
+<A HREF="networking_for_pandora_boxes.html#2.3.4">2.3.4</A>.
+
+<p>
+</LI>
+<LI>Latency proportional to size
+
+<p>
+As the data in the transmit path has to be copied from memory over the
+OS-link to the slave transputer, the latency of this portion of the
+transmission is proportional to the size of the data. Principle
+<A HREF="networking_for_pandora_boxes.html#2.3.8">2.3.8</A> refers to low latency high priority
+streams, and this can therefore be acheived with low bandwidth
+streams.
+
+<p>
+</LI>
+<LI>No data copying
+
+<p>
+As no data copying is performed inside or to the transmission
+processes, as required by principle <A HREF="networking_for_pandora_boxes.html#2.3.8">2.3.8</A>, there
+is also a benefit in higher possible data bandwidth, principle
+<A HREF="networking_for_pandora_boxes.html#2.3.6">2.3.6</A>.
+
+<p>
+</LI>
+<LI>Stream prioritising
+
+<p>
+The transmission process maintain the structure in figure
+<A HREF="pandora_network_software_implementation.html#Fig3.6">3.6</A>, which provides a priority-ordered list of streams for
+transmission. As the <I> transmitter</I> process transmits blocks from
+streams at the front of the queue in preference to those further down
+the queue, streams at the front have a shorter latency (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.8">2.3.8</A>) and higher priority (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.7">2.3.7</A>). As the stream priority is based on the
+stream number, which is host-specified, and as the stream priority
+forms part of the quality of service for the stream, principle
+<A HREF="networking_for_pandora_boxes.html#2.3.3">2.3.3</A> is supported (quality of service
+specifiable per stream) in priority terms.
+
+<p>
+</LI>
+<LI>Active queue priority over inactive stream
+
+<p>
+However, when a low priority stream is active and succeeding in
+transmission, the <I> transmitter</I> process does not preempt the
+stream when higher priority traffic arrives. This maintains the
+principle of active streams having a higher priority than inactive
+streams, described by principle <A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>.
+
+<p>
+</LI>
+<LI>Streams multiplexed over OS-link
+
+<p>
+The transfer of data to the slave transputer over the OS-link by the
+<I> transmitter</I> process multiplexes up to three streams. This helps
+to reduce data jitter (principle <A HREF="networking_for_pandora_boxes.html#2.3.9">2.3.9</A>) and aids
+prioritising streams (principle <A HREF="networking_for_pandora_boxes.html#2.3.7">2.3.7</A>), and at
+overload of one stream it helps stream independence (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>).
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+<A NAME="3.3.5"></A><h4>
+3.3.5 Data reception
+</h4>
+<p>
+
+
+<p>
+Fast reception of data is important as although the CFR provides the TOG
+mechanism, which informs transmitters that the data they sent has not
+been correctly received (a very useful backpressuring mechanism), 
+high bandwidth transfers requires this not to be used. So, the
+reception of data is managed in the networking software by a single
+high priority process.
+
+<p>
+<A NAME="3.3.5.1"></A><h5>
+3.3.5.1 Packet receiver
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+This process takes packets from the slave transputer, which buffers up
+to two packets itself. These packets must be reassembled into blocks,
+whose block descriptors must be passed to the <I> connection
+management</I> process.
+
+<p>
+The <I> packet receiver</I> process blocks waiting for a packet from the
+slave transputer. This packet is read directly into a buffer area
+which has been preallocated. The header information is examined to
+determine on which stream the packet was received. The header is then
+checked to see if it matches the header of the next packet expected on
+that stream. If so, the packet is linked into the block for that
+stream, and a new expected header is calculated. If the packet is not
+expected, either because the stream itself was not actively receiving,
+or because it is the start of a new block, or for some other reason,
+some exceptional code is run. In the first case a new block descriptor
+is allocated, the packet validated (it must be the start of a block),
+the packet is linked into the block descriptor, and the new expected
+header for the stream is calculated. In the second case the old block
+descriptor of the stream is replaced with a new one pointing just at
+the new packet. The packets linked into the old block are freed. The
+third case indicates the packet has arrived unexpectedly, which may
+occur due to the VCI map RAM failing, or because it is an MSNL PDU. An
+MSNL PDU is sent to the <I> connection manager</I>, whereas a completely
+unexpected packet forces the <I> connection manager</I> to check the CFR
+hardware via the <I> slave command manager</I>.
+
+<p>
+There may be cases where some packets from a block are received on a
+stream, then the transmitter stops for some reason (reset, hardware
+failure, or the connection being closed). To allow for this a timer is
+watched to ensure that any buffer areas allocated on a stream on which
+this occurs may be freed after a suitable time period.  In this case
+the packet receiver process reports a <I> data timeout</I> message to
+the <I> connection management</I> process.  This timeout is expected to
+be required very rarely, and is set at one second.
+
+<p>
+The <I> packet receiver</I> process runs at high priority to ensure the
+fastest possible response to packets being sent by the slave, and to
+provide fast access to allocation and deallocation of the global
+buffer area.
+
+<p>
+<A NAME="3.3.5.2"></A><h5>
+3.3.5.2 Network principles in action
+</h5>
+<p>
+
+
+
+<p>
+The <I> packet receiver</I> process is driven by the slave transputer,
+which is in turn driven by the network itself, and it drives the <I>
+connection management</I> process with reassembled data. As such it is
+similar to the host interaction process, just a data pipe: it has no
+control over the order in which it receives data, so prioritising the
+data reception. Also it cannot recover from, or handle, the network
+itself being overloaded, as there is no available indication of this.
+
+<p>
+The network principles which were involved in the design, however, are:
+
+<p>
+<UL>
+
+
+<p>
+<LI>Low overhead per block and per stream
+
+<p>
+The handling of packets, blocks and streams is highly optimised inside
+the <I> pakcet receiver</I> process, and results in a low cost in
+handling the blocks and streams (even at overload, principle
+<A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A> as well as a high receive bandwidth,
+principle <A HREF="networking_for_pandora_boxes.html#2.3.6">2.3.6</A>.
+
+<p>
+</LI>
+<LI>No data lost without a message
+
+<p>
+Any data discarded in the network subsystem occurs either in the
+transmitter or at the <I> packet receiver</I> process, as the CFR uses
+its TOG mechanism to prevent receiver FIFO overflow. So, on the
+receiving end of a connection, all data discarded must be explicitly
+discarded, and messages indicating this data discard can be generated,
+helping in the stream reliability if required (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.4">2.3.4</A>).
+
+<p>
+</LI>
+<LI>Latency proportional to size
+
+<p>
+As with the previous OS-link transfers, the overhead of handling the
+data is mainly in the OS-link to memory transfer of the received data.
+As whole blocks must be reassembled before transfer to the host, the
+latency of a stream is proportional to the block size. To achieve low
+latency streams (see principle <A HREF="networking_for_pandora_boxes.html#2.3.8">2.3.8</A>), small
+blocks should be used.
+
+<p>
+</LI>
+<LI>Unlimited receive data buffering
+
+<p>
+As required by principle <A HREF="networking_for_pandora_boxes.html#2.3.5">2.3.5</A>, receive
+buffering is not explicitly limited, as the transfer of data to the
+host is faster than the network and therefore the receive buffering
+will balance automatically.
+
+<p>
+</LI>
+<LI>No data copying
+
+<p>
+The <I> packet receiver</I> process received data from the slave
+transputer over the OS-link into memory, and it is not copied before
+being transferred to the host by the <I> buffer to host</I> process. Not
+requiring a data copy reduces latency (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.8">2.3.8</A>) and improves bandwidth (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.6">2.3.6</A>).
+
+<p>
+</LI>
+<LI>Streams multiplexed over network
+
+<p>
+The <I> packet receiver</I> process reassembles many streams at once,
+thus allowing streams to be multiplexed over the network. Compared to
+restricting the reassembly processes this reduces jitter in streams,
+principle <A HREF="networking_for_pandora_boxes.html#2.3.9">2.3.9</A>. At overload it also provides a
+uniform degradation of the network receiver.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+<A NAME="3.3.6"></A><h4>
+3.3.6 Connection management
+</h4>
+<p>
+
+
+<p>
+The sections above describe the low level processes in the networking
+software: host management; slave management; data transmission and
+reception. To provide a complete MSNL implementation requires a
+higher-level process. Also a switch is needed to transfer data between
+the host's processes and the slave's processes. This functionality is
+provided by the <I> connection management</I> process.
+
+<p>
+This process functions primarily as a switch, to transfer data from the host 
+buffering to the transmission system and from the packet receiver to the host 
+buffering. In addition it must decode commands from the host, converting them 
+into MSNL actions, connection management actions, or commands for 
+the <I> slave command manager</I> process. Most importantly it must accept 
+data or commands from any of the processes which might want to communicate 
+with it at all times --- it is not allowed to send requests and block waiting 
+for responses, or block on outputting data --- otherwise the whole network 
+software could grind to a halt. In this sense it is entirely event driven, 
+the events being messages from its input processes. Note that in the
+whole structure this is the only point at which decisions are made
+based on one of many inputs, all other processes are pipes, and the
+process only operates on blocks, not packets. This is
+because the `ALT' instruction required to wait for many inputs is
+slow to set up <B><A HREF="bibliography.html#Bib32">[32]</A></B>.
+
+<p>
+The following sections describe the implementation of the various
+functions of the <I> connection management</I> process, describing the
+events which can occur and the actions taken in response.
+
+<p>
+<A NAME="3.3.6.1"></A><h5>
+3.3.6.1 Protocol implementation
+</h5>
+<p>
+
+
+<p>
+MSNL provides facilities for the creation and destruction of lightweight, bidirectional virtual circuits between two network interfaces connected by a variety of networks. In its simplest form the protocol implementation handles the following events:
+
+<p>
+<UL>
+
+
+<p>
+<LI>Host requests creation of a connection to another network interface
+
+<p>
+When this event occurs the <I> connection management</I> process must check that the 
+connection specified in the request is not already active --- it is not permitted 
+for a single connection to connect to two places. After passing this test the 
+connection is initiated by setting up the internal connection data structures, 
+creating an MSNL PDU for transmission, and passing this to the <I> TX queue handler</I>. 
+This should ensure the MSNL PDU is broadcast on the local network. A timer is also set 
+up so that another identical PDU may be sent, if no connection has been formed, after 
+a suitable interval. This continues until a retry count is exceeded or the connection is formed.
+
+<p>
+</LI>
+<LI>Connection creation reply received from packet receiver
+
+<p>
+A connection creation reply may be received by the network in response
+to a creation request, in which case the <I> packet receiver</I> will
+forward the packet to the <I> connection management</I> process. This checks
+that the connection creation request was indeed sent, then establishes
+the connection in its internal data structures. The host is informed
+through a message to the <I> buffer to host</I> process. In addition the virtual circuit
+identifier (VCI), which was sent in the creation request, is opened by
+sending a command to the <I> slave command manager</I> to ask the CFR
+CMOS ASIC to set the correct VCI map RAM entry.
+
+<p>
+</LI>
+<LI>Connection creation timed out
+
+<p>
+If a connection creation request fails to elicit a response after a certain number of retries the creation of the connection is stopped, and the host informed via the host buffer.
+
+<p>
+</LI>
+<LI>Connection create request received from packet receiver
+
+<p>
+As an alternative to initiating a connection, another network
+interface may request a connection with the network software. This will
+mean receiving a connection create request PDU, which the <I> packet
+receiver</I> forwards to the <I> connection management</I> process. This process
+can then check its data structures to see if it should allow the
+connection to be made. If so, a connection create reply will be
+generated, a VCI chosen and the internal data structure updated. The
+host will be informed a connection has been made, and the <I> slave
+command manager</I> will be sent a command to ask the CFR CMOS ASIC to
+set the VCI map RAM entry.
+
+<p>
+</LI>
+<LI>Host requests destruction of a connection
+
+<p>
+When a stream has finished needing a connection the host will request
+the destruction of that connection. This forces a single connection
+destruction request PDU to be sent, via the <I> TX queue handler</I>, on
+the network; the internal data structures to be updated; a command to
+the <I> slave command manager</I> to ask the CFR CMOS ASIC chip to reset the
+VCI map RAM entry for the VCI allocated to the stream being destroyed.
+
+<p>
+</LI>
+<LI>Connection destruction request received from packet receiver
+
+<p>
+The final connection maintenance event is a request received from the
+network for an established connection to be destroyed. This request
+need only include the VCI belonging to the connection, and so when
+this PDU is received by the <I> connection management</I> process from the
+<I> packet receiver</I> it must search its data structures for a
+corresponding connection. Should one be found, the connection is
+removed by updating the internal data structures; informing the host
+the connection has been killed; closing the VCI by sending a command
+to the <I> slave command manager</I> to ask the CFR CMOS ASIC to reset
+the VCI map RAM entry.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+<A NAME="3.3.6.2"></A><h5>
+3.3.6.2 Command interpretation
+</h5>
+<p>
+
+
+<p>
+Command interpretation is in general simple. Some commands are handled
+by the protocol implementation. Others may request or set internal
+parameters, such as connection types or retry strategies. Yet others
+may not be understood by the <I> connection management</I> process, and these
+are forwarded to the <I> debug manager</I> in case it can handle them.
+
+<p>
+Commands may arrive from the host buffer processes, from the external OS-link
+reserved for debugging, or from the <I> debug command
+multiplexer</I>. This latter route allows the implementation of a
+network-based debugging system, as well as higher-level processes
+accessing the command system of the connection management process.
+
+<p>
+<A NAME="3.3.6.3"></A><h5>
+3.3.6.3 Data switching
+</h5>
+<p>
+
+
+<p>
+Data switching is in general also simple. Data may arrive from the
+host buffer for transmission, in the form of a pointer to a block
+descriptor. This block descriptor will contain the stream on which the
+data should be sent. This maps directly onto an MSNL connection, so
+the connection structures must be checked to see if the connection has
+been fully created, and therefore whether the transmission should take
+place. If so, the block descriptor is updated with the destination VCI
+and block reassembly number, then it is forwarded to the <I> TX queue
+handler</I> process. If the transmission is not to take place the data
+must be discarded, so the local allocator process is asked to free the
+buffer areas, and th appropriate messages generated.
+
+<p>
+The other form of data switching is from the <I> packet receive</I>
+process, which may hand completed block descriptors to the <I> connection
+management</I> process. These are then sent to the host buffer, which will
+forward them to the host.
+
+<p>
+<A NAME="3.3.6.4"></A><h5>
+3.3.6.4 Message switching
+</h5>
+<p>
+
+
+<p>
+So as not to complicate the above sections the message switching
+scheme described in section <A HREF="pandora_network_software_implementation.html#3.3.1.2">3.3.1.2</A> has been
+omitted. Every message which is described as being sent to the host
+buffer in fact goes through the message switch. This allows routing of
+messages either to the <I> buffer to host</I> process, to the <I> debug
+buffer</I> process or to the <I> debug manager</I>, or to be discarded. The
+<I> debug buffer</I> and <I> buffer to host</I> are handshaking buffers
+(see section <A HREF="pandora_network_software_implementation.html#3.3.1.3">3.3.1.3</A>), and so for these
+destinations the connection management process maintains FIFO buffers
+of messages. As these FIFOs must be of finite length it is possible
+that they will fill up, with messages having to be discarded, When
+this occurs an appropriate message is forcibly inserted into the FIFO
+to indicate the overflow to the host or debugger.
+
+<p>
+<A NAME="3.3.6.5"></A><h5>
+3.3.6.5 Network principles in action
+</h5>
+<p>
+
+
+
+<p>
+The connection management process provides the necessary features to
+supply the following Pandora network requirements:
+
+<p>
+<UL>
+
+
+<p>
+<LI>Data reliability
+
+<p>
+To implement reliable data transfer (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.4">2.3.4</A>) for low bandwidth streams the message
+switching system can be utilised. Any data received on a stream can be
+forwarded to the debug manager, which can forward it to a reliability
+checker, which in turn could generate an acknowledgement and send on
+the data to the host by going back through the connection management
+process.
+
+<p>
+Similarly connections can be continually checked for integrity by
+having keep-alive packets generated by a higher-level process. These
+packets can be transmitted with a command to the connection
+management process.
+
+<p>
+</LI>
+<LI>Receive priority over transmit
+
+<p>
+The transputer has a construct, `PRI ALT', which allows prioritised
+handling of message channels. In the <I> connection management</I>
+process the message channels from the <I> packet receiver</I> and <I>
+buffer to host</I> processes have top priority: this provides a form of
+receive streams prioritised over transmit streams, as required by
+principle <A HREF="networking_for_pandora_boxes.html#2.3.7">2.3.7</A>.
+
+<p>
+</LI>
+<LI>Inform host at overload
+
+<p>
+All messages are switched inside the <I> connection management</I>
+process, and so it has full knowledge of the overload states. The
+process can the inform the host frequently, but not continuously, of
+the overload, as required by principle
+<A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>.
+
+<p>
+</LI>
+<LI>Message overloading has no significant handling
+
+<p>
+When the message system overloads, for example when the host itself overloads, the
+message switching in the <I> connection management</I> process inserts
+the message overload messages into the path to the host without much
+processing required. This helps keep the extra processing required at
+overload low, principle <A HREF="networking_for_pandora_boxes.html#2.3.2">2.3.2</A>.
+
+<p>
+</LI>
+<LI>Quality of service per stream
+
+<p>
+The <I> connection management</I> process provides the host with full
+accessiblity to over 1000 streams, each with its own transmit buffer
+limit (T4 software only, see below) and other QOS parameters (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.3">2.3.3</A>). The priority is determined by the
+stream number, so with suitable choice of stream numbers the host can
+prioritise audio streams over video streams, for example (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.7">2.3.7</A>).
+
+<p>
+</LI>
+<LI>Low per block overhead
+
+<p>
+The handling of blocks for transmission and reception requires some
+simple decision making before switching the block handles to the
+appropriate processes. This is a small processing overhead, reducing
+latency (principle <A HREF="networking_for_pandora_boxes.html#2.3.8">2.3.8</A>) and improving bandwidth
+(principle <A HREF="networking_for_pandora_boxes.html#2.3.6">2.3.6</A>).
+
+<p>
+</LI>
+<LI>SAP handling
+
+<p>
+In order to implement remote debugging of the master transputer
+network software, or to support the remote Pandora interface access,
+the <I> connection management</I> process provides the facilities for
+handling its service access points in a wide variety of ways, allowing
+many clients to attach to the same SAP, or to only allow connection to
+a SAP if the host has explicitly requested access, as is the case for
+Pandora streams' connections (principle
+<A HREF="networking_for_pandora_boxes.html#2.3.1">2.3.1</A>). The message switching provides the
+ability to route message to the debugger or to the host, required
+again by principle <A HREF="networking_for_pandora_boxes.html#2.3.1">2.3.1</A>.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+<A NAME="3.3.7"></A><h4>
+3.3.7 Debugging facilities
+</h4>
+<p>
+
+
+<p>
+The debugging facilities provided by the initial version of the master
+transputer software were very limited, although the software was
+designed to allow easy expansion. The debugging subsystem consists of the
+<I> debug buffer</I>, the <I> debug manager</I>, the <I> debug command multiplexer</I>, and
+the debugging applications.
+
+<p>
+<A NAME="3.3.7.1"></A><h5>
+3.3.7.1 Debug buffer
+</h5>
+<p>
+
+
+<p>
+The <I> debug buffer</I> process  takes messages
+from the <I> connection management</I> process and forwards them to
+either the external OS-link reserved for debugging, if a local
+debugging system is present, or to the <I> debug command multiplexer</I>
+process if network-based debugging is in progress, or it discards them
+if no debugging is taking place.
+
+<p>
+For network-based debugging, messages forwarded to the <I> debug command multiplexer</I> are 
+converted into commands to send the message contents on the debugging
+connection. Thus any debugging command which generates a message, or any event
+which creates a message routed to the debugger, will have that message
+sent as a block of data on the debugging connection.
+
+<p>
+<A NAME="3.3.7.2"></A><h5>
+3.3.7.2 Debug manager
+</h5>
+<p>
+
+
+<p>
+The <I> debug manager</I> process supplies the expandability. It takes any command
+not known by the <I> connection management</I> process and passes it to the
+appropriate debugging application. The decision about which process to
+pass a particular command to is taken on the command type, and so each
+debugging process can support a number of command types, but no two
+processes can support the same one.
+
+<p>
+<A NAME="3.3.7.3"></A><h5>
+3.3.7.3 Debug command multiplexer
+</h5>
+<p>
+
+
+<p>
+The <I> debug command multiplexer</I> provides the route by which the
+debugging processes can request commands to be performed. It takes
+input from all the debugging applications, and forwards them to the <I>
+connection management</I> process. An alternative would be to have all
+the inputs going instead directly to the <I> connection management</I>
+process, but this has the drawback that it would slow that process
+down (increasing the number of inputs to a process decreases its
+performance).
+
+<p>
+<A NAME="3.3.7.4"></A><h5>
+3.3.7.4 Debugging applications
+</h5>
+<p>
+
+
+<p>
+The debugging applications provide the debugging functionality on top
+of the connection maintenance and slave transputer maintenance provided
+by the <I> connection management</I> process. For the initial software
+this includes processes for measuring the performance of connections,
+and utilisation of the buffer allocation system.
+
+<p>
+<A NAME="3.3.7.5"></A><h5>
+3.3.7.5 Network principles in action
+</h5>
+<p>
+
+
+<p>
+The debugging system in the master transputer software was designed
+with two purposes in mind. Firstly, it allows the remote maintenance
+of a Pandora system's network interface, with access to the connection
+maintenance facilities and rudimentary connection statistics. Secondly
+it provides the abililty to measure the performance of the networking
+software under real loads, and to report that performance to a remote
+system, so avoiding using the Pandora system's response path and
+picking the messages out of a log file generated by the Pandora
+daemon.
+
+<p>
+In this way it fulfils only the requirement for a remote network-based
+debugging system. However, the expandability is there to provide
+reliable low bandwidth connections for the Pandora interface,
+network-based access (principles <A HREF="networking_for_pandora_boxes.html#2.3.1">2.3.1</A> and
+<A HREF="networking_for_pandora_boxes.html#2.3.4">2.3.4</A>).
+
+<p>
+<A NAME="3.4"></A><h3>
+3.4 Additions and changes in later implementations
+</h3>
+<p>
+
+
+<p>
+
+
+<p>
+Since the initial version of the MSNL-based software was written there
+have been two new hardware versions of the network card (see section
+<A HREF="pandora_network_software_implementation.html#3.1">3.1</A>), each requiring new software. In addition,
+extra facilities have been added to the card in terms of debugging
+applications.
+
+<p>
+This section is split into three parts. Firstly the changes required
+by the shift to the T4 card (T425 master transputer with 2 megabytes
+of memory) are described. Then the remaining two parts describe the
+changes required to support the ORL ATM switch network, in both the slave
+transputer and the master transputer.
+
+<p>
+<A NAME="3.4.1"></A><h4>
+3.4.1 T4 Card
+</h4>
+<p>
+
+
+<p>
+Upgrading to the 32-bit T425 driven card provided more freedom in the
+management of the buffering of data, with 2 megabytes of DRAM.
+
+<p>
+Instead of the buffer allocation system described above, all the
+software was rewritten to use 8 kilobyte buffer areas. So instead of
+reading in data from the host into packet-sized buffers and linking
+these together, the whole block of data from the host is read into a
+continguous piece of memory. This places the burden of segmentation on
+the <I> transmitter</I> process. Similarly, instead of linking
+packet-sized buffers together, the <I> packet receiver</I> process reads
+the data from the slave transputer into the correct position in a
+buffer allocated to a stream. These changes improve the performance of
+the software dramatically: the allocation and deallocation of buffer
+areas occurs on a block basis rather than a packet basis, and so
+requires less processing power; host interactions read and write from
+areas of memory, rather than breaking down the interactions into
+packet-sized operations. The system also removes the requirements for
+the high priority buffer allocation processes attached in the T2
+card's software to the host interaction processes --- this allocation
+can be performed by the <I> connection management</I> process.
+
+<p>
+It was at this stage that the buffer limiting requirement had to be
+implemented (principle <A HREF="networking_for_pandora_boxes.html#2.3.5">2.3.5</A>). This is based in
+the <I> connection management</I> process, and restricts the number of
+buffers which may be waiting to be transmitted on a single stream. A
+stream can be receiving data from the host faster than it can be
+transmitted through the CFR interface, and so, without a buffering
+limit, a large amount of data may be buffered amounting to seconds of
+real-time data. So, when new data is received from the host for
+transmission over a connection on the CFR, the number of blocks
+already buffered on that connection for transmission is tested to see
+if it exceeds the limit set for that connection. If the limit is
+exceeded a message is generated indicating that data has been
+refused. This buffer limiting supports the Pandora network principle
+<A HREF="networking_for_pandora_boxes.html#2.3.5">2.3.5</A> on a per-stream basis, principle
+<A HREF="networking_for_pandora_boxes.html#2.3.3">2.3.3</A>. (The T2 software did not require
+this functionality as there was not enough buffer memory available in the
+hardware.)
+
+<p>
+In addition to the changes to larger buffers, more debugging
+applications were added. These include a reset management application,
+which allows a Pandora box to boot over the network, so not requiring
+a host workstation at all, and more performance measuring
+applications.
+
+<p>
+<A NAME="3.4.2"></A><h4>
+3.4.2 ATM slave
+</h4>
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/atmslave.ps"> Figure 3.7 : ATM slave transputer software structure</A><A NAME="Fig3.7"></A>
+
+
+
+<p>
+As can be seen by comparing the two figures <A HREF="pandora_network_software_implementation.html#Fig3.2">3.2</A> and
+<A HREF="pandora_network_software_implementation.html#Fig3.3">3.3</A>, the hardware that the slave transputer has to manage is
+entirely different for the ATM switch network than for than the CFR.
+This requires completely different slave transputer software.
+
+<p>
+The ATM slave transputer software, as for the CFR slave software,
+divides into four main processes (see figure <A HREF="pandora_network_software_implementation.html#Fig3.7">3.7</A>): the
+<I> transmit buffer</I>; the <I> receive buffer</I>; the <I> interrupt handler</I>; the
+<I> command buffer</I>.
+
+<p>
+<A NAME="3.4.2.1"></A><h5>
+3.4.2.1 Transmit buffer
+</h5>
+<p>
+
+
+<p>
+The ATM switch network interface uses FIFOs for cells for transmission
+and reception, each 64 ATM cells deep, unlike the CFR which provides only a
+single packet of buffering in each direction. This relieves the slave software of a major
+load: the complex management of the transmit FIFO. Instead, the
+<I> transmit buffer</I> must just read data from the master transputer into memory, then
+copy the data into the FIFO if there is room. If the transmit FIFO is
+full, the <I> transmit buffer</I> process marks itself as blocked, enables the
+TX FIFO not full interrupt, and waits for a message from the <I> interrupt
+handler</I>, much as the CFR slave does.
+
+<p>
+The copying of data from memory to the FIFOs is unfortunately
+necessary. It would be better if the data could be read directly from
+the master transputer into the FIFO. However, the OS-link engines in
+the transputer access memory using byte-wide accesses, whereas the
+FIFOs must be accessed 16-bits at a time.
+
+<p>
+<A NAME="3.4.2.2"></A><h5>
+3.4.2.2 Receive buffer
+</h5>
+<p>
+
+
+<p>
+The <I> receive buffer</I> process normally runs constantly, reading cells
+from the received cell FIFO into memory and transmitting them to the
+host. The copying must be done for the same reason as outlined above.
+
+<p>
+If the receive FIFO should become empty the receive buffer process
+will mark itself as idle, enable the RX FIFO not empty interrupt, and
+wait for a message from the <I> interrupt handler</I>.
+
+<p>
+<A NAME="3.4.2.3"></A><h5>
+3.4.2.3 Interrupt handler
+</h5>
+<p>
+
+
+<p>
+The <I> interrupt handler</I> waits for an interrupt to occur. When this
+happens it checks the source of the interrupt, which will be one of:
+TX FIFO not full; RX FIFO not empty; physical ATM
+connection broken. If the <I> transmit buffer</I> process is marked as
+blocked and the TX FIFO is not full it will be sent a wake-up message.
+If the <I> receive buffer</I> process is marked as idle and the RX FIFO
+is not empty then it will be sent a wake-up message. If the physical
+ATM connection has been broken the only action required is to reset
+the state of the ATM connection, to acknowledge the interrupt.
+
+<p>
+<A NAME="3.4.2.4"></A><h5>
+3.4.2.4 Command handler
+</h5>
+<p>
+
+
+<p>
+The <I> command handler</I> accepts commands from the master transputer,
+obeys them, then generates a reply. Possible commands include reset,
+enable interface, and read or write the I^2C interface. A reset
+requires the FPGA to be reset by writing to a latch, holding the
+processor busy for some time, then releasing the FPGA. Unlike the CFR
+reset requirements, this takes only a few milliseconds. The other
+complex command, reading or writing on the I^2C bus uses the
+microsecond clock of the T222 transputer to time the setting,
+unsetting and reading of two latch bits, according to the I^2C
+specification <B><A HREF="bibliography.html#Bib50">[50]</A></B>. Any data read is returned in a message
+to the master transputer, in addition to the standard acknowledgement
+reply.
+
+<p>
+<A NAME="3.4.2.5"></A><h5>
+3.4.2.5 Priorities and master/slave interaction
+</h5>
+<p>
+
+
+<p>
+All four processes run at high priority, as they must run exclusively.
+However, none of the processes requires processor-intensive operations
+and so contention for the CPU does not occur. The relative priorities of
+receiving and transmitting data is not an issue, as without CPU
+contention the two processes occur independently of each other. Each
+will utilise the maximum bandwidth of the OS-links to the host that is possible
+given the hardware constraints.
+
+<p>
+<A NAME="3.4.2.6"></A><h5>
+3.4.2.6 Comparison with CFR slave
+</h5>
+<p>
+
+
+<p>
+The ATM hardware requires much less management than the CFR interface.
+Indeed, the only reason for keeping the slave processor on the ATM
+network interface card was for the ease of implementing the software,
+by porting the CFR card software. The large FIFOs for transmission and
+reception place less time constraints on the slave software compared
+to the CFR. The ATM interface also requires little maintenance, unlike
+the CFR which has many failure modes. In addition there is no VCI map
+RAM in the ATM interface, as the network is formed from many single
+point-to-point connections rather than a multiple-access ring. Every
+cell received by the ATM interface must be destined for the ATM
+interface, whereas the CFR CMOS ASIC requires the VCI map RAM to
+determine whether a packet should be received.
+
+<p>
+<A NAME="3.4.3"></A><h4>
+3.4.3 ATM master
+</h4>
+<p>
+
+
+<p>
+The ATM master transputer software is very similar to the T425 master
+transputer software, and actually uses the same debugging and host
+interaction processes. The <I> connection management</I> process differs
+only in the way it creates MSNL PDUs, which have a different format
+under FDL <B><A HREF="bibliography.html#Bib57">[57]</A></B> on
+the 48-byte cell ATM switch network to MDL on the 32-byte packet CFR, and in
+the small amount of command decoding for managing the slave transputer
+(no VCI map RAM checking commands are required, for example).
+
+<p>
+The <I> packet receiver</I> process is different, as it must take the
+48-byte cells from the ATM slave transputer for reassembly. In all
+other cases it too is the same.
+
+<p>
+The largest difference is in the <I> transmitter</I> process. This
+process no longer has to handle responses for each cell transmitted,
+and indeed has no idea whether a cell has been succesfully received by
+its destination. There is also no backpressuring mechanism provided by
+the network. The process simply sends the first buffer on every
+actively transmitting stream in order of priority, cell by cell to the
+slave transputer.
+
+<p>
+Some of the support for the network principles disappears as the ATM
+switch network does not have an analogue of the CFR TOG mechanism.
+Many of the reliability guarantees disappear, and overload in the
+network itself is much harder to detect. However, the ATM switch
+network also breaks the bandwidth limitations of the CFR, and so the
+transmit bandwidth to the network is approximately that from the host,
+leading to CPU overload being the major transmit failure, detected
+when the transmit buffer limiting comes into action; receive
+bandwidth from the network is similarly handled, but with the message
+system providing the buffer limiting. Overload from the network to the
+slave transputer, or cell loss inside the ATM network, can cause data
+to be discarded by the receiver, but usually some indication will be
+gathered when some cells from a block are received.
+
+<p>
+Finally, the <I> slave command manager</I> need not perform any of the
+complex tasks required by the CFR slave transputer, and only acts as a
+command sink, with the exception of reset commands which are forwarded
+to the slave transputer.
+
+<p>
+
+
+<p>
+<p>
+<center><A HREF="high_precision_clock_distribution.html">Chapter 4 : High precision clock distribution</A>
+</body></html>

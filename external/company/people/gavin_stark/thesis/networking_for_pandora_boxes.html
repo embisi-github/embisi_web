@@ -1,0 +1,2021 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<title>
+Networking for Pandora boxes</title>
+</head>
+<body background="grey.jpg">
+<h1 align=center>
+<A NAME="2"></A>Chapter 2 : Networking for Pandora boxes</h1>
+
+
+<p>
+ The Pandora box is a remarkable piece of equipment. It provides a
+complete multimedia system which integrates almost seamlessly with the
+X workstation to which it is attached. The applications to which the
+system has been put include video phone, video conferencing, display
+of live television on the workstation, and video mail. The workstation
+is not burdened with either the video or audio data, neither are the
+applications themselves. Synchronisation of streams is performed where
+necessary by the Pandora box and associated systems.
+
+<p>
+ The Pandora box grew out of experimentation with digital video
+<B><A HREF="bibliography.html#Bib35">[35]</A></B> and digital audio <B><A HREF="bibliography.html#Bib59">[59]</A></B> over fast networks.
+When the research for this thesis was started the Pandora box was
+attached to a Cambridge Fast Ring (CFR) network <B><A HREF="bibliography.html#Bib30">[30]</A></B>, running Unison Data
+Link (UDL) (<B><A HREF="bibliography.html#Bib13">[13]</A></B>, <B><A HREF="bibliography.html#Bib17">[17]</A></B>), with the network connection
+attached to the server card (see below). The initial task of the
+research was to implement MSNL <B><A HREF="bibliography.html#Bib23">[23]</A></B> as the networking layer on a new
+network-specific card. To perform this implementation required an
+examination of the data types inside the Pandora system that the
+networking layer would be required to support. Broadly speaking these
+data types are real-time audio and video, but more detailed knowledge
+of the streams was required, so research was carried out into how the
+Pandora hardware integrated with its software to provide the data
+streams. This chapter describes that research. It is divided into the
+following broad sections: an overview of Pandora; a detailed
+examination of the individual parts, and the implications of these on
+the network; a summary of the impact on the networking software of the
+Pandora hardware and software.
+
+<p>
+<UL>
+
+
+<p>
+<LI>An overview of the Pandora system
+
+<p>
+ The Pandora system is complex, consisting of a multiprocessing
+multimedia engine attached to a Unix workstation, and controlling a
+Pandora system is done using a daemon running on the workstation. This section
+examines both the features and facilities the networking software must
+provide, and also the impact those have on the management of a Pandora
+box at the highest level, interaction with the user. Following on from this it
+describes an addition to the facilities whereby control of the
+Pandora box may be managed through the network interface.
+
+<p>
+</LI>
+<LI>Constituent parts of Pandora
+
+<p>
+ The Pandora box consists of many interacting subsystems, each having differing
+demands to place on the network. This section descibes the research into
+the subsystems of the Pandora box, from the hardware and the software
+driving that hardware to the implications of these on the facilities
+the network must provide to fully support the Pandora box capabilities.
+
+<p>
+</LI>
+<LI>Network principles
+
+<p>
+  This final section brings together the features required by the
+Pandora box described in the previous two sections; to summarize the
+facilities the network must provide in a set of principles for the
+design of multimedia network software.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+ This chapter is therefore a summary of the research that was
+undertaken prior to writing the software for the networking of Pandora
+using MSNL.
+
+<p>
+<A NAME="2.1"></A><h3>
+2.1 Overview of the Pandora System
+</h3>
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/pandorasys.ps"> Figure 2.1 : A Pandora System and its Connectivity</A><A NAME="Fig2.1"></A>
+
+
+
+<p>
+ As shown in figure <A HREF="networking_for_pandora_boxes.html#Fig2.1">2.1</A>, The Pandora system consists
+of an Acorn Unix workstation <B><A HREF="bibliography.html#Bib2">[2]</A></B> running X-windows attached
+to a Pandora box, with communication between the two using an INMOS OS
+(oversampled) serial link <B><A HREF="bibliography.html#Bib31">[31]</A></B> running at 10 Mbps. The
+Pandora box is also connected to a camera, a microphone, a speaker, a
+network, the workstation's analogue video output and the workstation
+monitor's analogue video input. (The video images generated in a
+Pandora box are mixed with the workstation video signal by the mixer
+card in a Pandora box.) Currently there are two Pandora system network
+interfaces, one for the Cambridge Fast Ring (CFR) and one for the
+Olivetti 100Mbps fast packet switch network, although when this
+research started only the CFR interface existed. The CFR is an early
+Asynchronous Transfer Mode (ATM) network, which uses 32 byte packets
+with a four byte header. The Olivetti fast packet switch network is an
+ATM-layer ATM Forum standards compliant ATM network using four byte
+headers on 48 byte cells in a switch fabric.
+
+<p>
+<A NAME="2.1.1"></A><h4>
+2.1.1 The Pandora system and its workstation
+</h4>
+<p>
+
+
+<p>
+ The workstation for a Pandora system is a standard Unix workstation.
+The multimedia X applications can run on any Unix system to which the
+workstation is connected, and they control the Pandora resources they
+require through the Pandora daemon running on the workstation. The
+Pandora daemon controls the Pandora box through a device driver which
+handles the 10Mbps INMOS OS-link; no data passes through the
+workstation, so operating system support requirements are low
+<B><A HREF="bibliography.html#Bib29">[29]</A></B>. The Pandora daemon is very simple.
+It supplies multiplexing of the control from client applications onto
+the Pandora system, and it retains no knowledge of the state of its
+clients. Communication between these client applications and the
+daemon is handled using the Unix socket interface, and consists of
+requests and responses. After every request the application awaits the
+response. This method provides synchronisation between the Pandora
+daemon and the X application, and places the burden of contention for
+access to the Pandora box on the Unix system, but it has drawbacks:
+
+<p>
+<UL>
+
+
+<p>
+<LI>Pandora box resource management
+
+<p>
+ The first drawback is that, if the client application crashes or is killed, it
+may be unable to free any resources it has been allocated by the
+Pandora box. As the Pandora daemon does not maintain a record of all
+the resources requested by a client application, it cannot release any
+of the resources a client may have had allocated to it.
+
+<p>
+ The Pandora box does not have any information about applications. It
+is not told which application is requesting resources, nor is it told
+when an application dies, and so there can be no mapping of resources
+to client application, and no automatic freeing of the resources.
+
+<p>
+ Therefore there can be a gradual building up of wasted resources
+inside the Pandora box, which can only be released with a system
+reset. There is folklore amongst Pandora users which states that if
+anything should not be working on a Pandora box, the first possible
+solution to try is to reset the box. This is unfortunate in two
+respects: firstly it is frequently not the solution to the problem
+(Pandora is a complicated networked system with many parts which can
+fail, including cameras, microphones, and the network); and secondly
+it leads to a possibly undeserved reputation of unreliability.
+
+<p>
+</LI>
+<LI>Speed of control
+
+<p>
+ The second drawback with the Pandora daemon, X application and
+Pandora box interactions is speed related. The Pandora box contains
+six processors, which themselves handle requests and responses very
+quickly even under quite high loads. The Unix workstations are not so
+fast (they are relatively cheap, and now old, machines), especially if
+there is a requirement to switch between processes. For every request
+from the X application the Unix kernel must switch to the Pandora
+daemon, use the device driver to send the request to the Pandora box,
+which must then block until it has read a complete response from the
+Pandora box, before returning it along the reverse path to the X
+application. As the software interface to the Pandora box is quite low
+level, with many requests and responses required for even simple
+tasks, the setup time for individual applications can be quite long in
+a user's eyes. An application like `<B> xvlookall</B>', which may
+attempt to open twenty or more small networked video windows, requires
+such a long time to start up that it becomes almost useless.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+<A NAME="2.1.2"></A><h4>
+2.1.2 Fundamental concepts in Pandora architecture
+</h4>
+<p>
+
+
+<p>
+ There are some fundamental concepts behind the Pandora system
+architecture, in both the software and hardware:
+
+<p>
+<A NAME="2.1.2.1"></A><h5>
+2.1.2.1 Pandora streams
+</h5>
+<p>
+
+
+<p>
+ All continuous data in the Pandora system is handled as streams.
+These streams of data travel from their source through any
+intermediate switching elements to their destination. In some cases
+such as audio streams, the streams may split to go to two or more
+destinations, so as not to overload the data source. The management of
+the streams requires control information to handle setting up,
+routing, and closing them down. Independence of streams is important:
+the performance of any stream should not affect the performance of any
+other stream, so that should a particular stream degrade due to
+overloading of one of the resources it requires, the user only sees
+degradation on that stream and so may rectify the problem <B><A HREF="bibliography.html#Bib6">[6]</A></B>.
+
+<p>
+<A NAME="2.1.2.2"></A><h5>
+2.1.2.2 Pandora segments
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/segformat.ps"> Figure 2.2 : Pandora segment format</A><A NAME="Fig2.2"></A>
+
+
+
+<p>
+ The continuous streams of data, both audio and video, are divided
+into Pandora segments for handling. Every Pandora segment contains a
+Pandora segment version identifier, a sequence number, a microsecond
+timestamp, a segment type and a length of the segment data in
+bytes. Following this header is the segment type specific data (see
+figure <A HREF="networking_for_pandora_boxes.html#Fig2.2">2.2</A>) <B><A HREF="bibliography.html#Bib5">[5]</A></B>.
+
+<p>
+ For audio segments the segment specific data is a sampling rate in Hz,
+a format identifier, a compression identifier, and a length field
+giving the length of the following audio data in bytes. Standard
+Pandora audio segments use 8-bit u-law coding (format 0,
+compression 0) at a sampling rate of 8000Hz, and multiples of 16
+samples in a segment. At 8kHz, 1 sample every 125 microseconds, this
+implies multiples of 2 milliseconds of data. Audio segments
+transferred between the audio card and the server card use just 4
+milliseconds of data, giving a header of 9 32-bit words, and 32 bytes
+of data, a total of 17 32-bit words at 250 Hz (136 kbps). To improve network
+performance, or rather not waste performance on sending unnecessary
+header information, the segment length can be controlled to give
+more data per segment, although it usually runs with 4 milliseconds of
+data per segment as above. The aim of small (i.e. temporally short)
+audio segments is to reduce the time delay for real-time streams of
+audio between networked Pandora systems. As this is not necessary for
+non-live streams (recorded and replayed, or those being recorded)
+larger segments may be used in these cases. In fact the video
+repository replays audio segments with 40 millisecond long samples (40
+32-bit words) with a suitably changed header.
+
+<p>
+ The video data is more complicated, as a frame of video
+corresponding to an instant of time may be split into many
+segments. Its segment type specific data contains the frame number of
+the video data, the number of segments into which the frame has been
+split, the number of this particular segment, the X and Y offsets into
+the frame of the segment, pixel format, compression type, the length of
+the arguments for the compression, compression specific data, the
+length in bytes of the video data, and finally the compressed video
+data itself. The compression types supported by Pandora store the X
+width of the segment data, the Y line number of the segment, the Y
+height in lines of the segment. So with any of the Pandora compression
+systems the total length of the Pandora segment header is 17 32-bit
+words. The compression systems supported are no compression (8 bits
+per pixel) and DPCM (4 bits per pixel), and frame sizes in normal use
+vary from 64 pixels by 56 pixels to 128 pixels by 128 pixels. These
+values give segments sizes from 465 words to 4113 words. As 4113 words
+is deemed too large to handle the larger frames are split into
+segments of at most about 4096 bytes, 1024 words long.  Also the
+larger frames are only used compressed as otherwise they use up too
+much of the Pandora box's resources. So in reality the video segments
+are between 465 words (one segment per frame, small) and 1024 words
+long (two segments per frame, large compressed). The frame rate of the
+video is under control of the application, and is usually either
+12.5Hz or 25Hz.
+
+<p>
+<A NAME="2.1.2.3"></A><h5>
+2.1.2.3 Transport of data
+</h5>
+<p>
+
+
+<p>
+ The standard Pandora audio segments require continuous data rates of
+17 32-bit words at 250 Hz, or 136 kilobits per second (see above),
+whereas Pandora video segments need an average rate of up to 2048
+words at 25 Hz, or 1.64 Mbps. Transporting the audio data inside a
+Pandora box using 20 Mbps INMOS OS-links is easy without introducing
+any unnecessary delays. The video data would suffer more, however, and
+so the architects of the Pandora box hardware put FIFOs on the video
+capture and video mixer cards for communication with the server card.
+The INMOS OS-links between the relevant transputers are used to signal
+data flow through the FIFOs.
+
+<p>
+ As the original Pandora architecture did not allow for a seperate
+network interface card, using the server card to control a network
+interface instead, there was no need for FIFOs for data transport to
+the network. With the change in the Pandora architecture to add a
+seperate network card it was deemed necessary to use the INMOS
+OS-link between the server transputer and the network card to carry
+both audio and video data.
+
+<p>
+<A NAME="2.1.2.4"></A><h5>
+2.1.2.4 Requests, responses and events
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/reqresp.ps"> Figure 2.3 : The request and response paths between processors</A><A NAME="Fig2.3"></A>
+
+
+
+<p>
+ The control of the Pandora box by the workstation uses the INMOS
+OS-link connecting the workstation to the audio card of the Pandora
+box.  The protocol running over this link <B><A HREF="bibliography.html#Bib65">[65]</A></B> uses requests acknowledged
+by responses, with asynchronous events allowed from the Pandora box to
+the Pandora daemon. (These asynchronous events are generally used for
+informational purposes during debugging, although they may highlight overload
+conditions which the Pandora daemon could act upon in the future.)
+
+<p>
+ In normal operation the Pandora daemon places a single request to the
+Pandora box and waits for a corresponding response. The request from
+the Pandora daemon arrives at the interface code on the audio and
+interface transputer. Here it is validated, then decoded into
+individual requests for processes running on the transputers. Each of
+these individual requests travels along the request path inside the
+box until its destination processes are reached, where they are handled. 
+In some circumstances the processes may need to generate responses to these
+requests, which will be transferred
+back along the response path (see figure <A HREF="networking_for_pandora_boxes.html#Fig2.3">2.3</A>).  If a request to
+the Pandora interface does not require a response from the lower levels
+of the Pandora software then it can acknowledge the request immediately
+with a suitable response. Otherwise it must wait for the response to
+arrive on the response path before replying to the Pandora daemon. In
+addition, asynchronous messages may be generated by any of the
+processes on this response path, and these are passed all the way back
+up through the interface code to the Pandora daemon.
+
+<p>
+ A request on the request path consists of a header of two 32-bit
+words (a processor address mask and a message length) followed by the
+message body. A message body consists of an operation identifier, a
+process address mask, and a second message length giving the length of the
+remaining message body. On each processor on the request path an
+incoming message is checked to see if the request is destined for one
+of its processes, by checking one bit in the processor address
+mask. If so the request is passed on in its entirety onto the internal
+request path for that processor. A request which may also be destined
+for another processor is passed on to the next processor on the
+request path. The internal request path for a processor is connected
+to a <I> fanout</I> process, which uses one bit of the process address
+mask for each of its output channels to work out whether the request
+(operation, new length and message body) should be routed to a process
+through its channel. In this way requests may either be sent to a
+particular process on a particular processor, or they may be multicast
+to many processes on one or more processors.
+
+<p>
+ A response on the response path consists of a sequence of individual
+reports. Each report consists of a report type, a length field, and a
+report body. Report types include string, integer, byte and integer
+array. As responses are a sequence of reports, and multiplexing the
+responses from many sources is necessary without corrupting individual
+responses, a response is defined to be a sequence of reports ending
+with a report of type <I> release</I>. On every processor there is a
+multiplexer process which understands this response format, and which
+can multiplex the responses generated by processes on that processor
+with those it receives on the incoming response path onto the outward
+response path. A hierarchy of response channels inside a processor is
+formed with multiplexers used to connect a number of incoming
+channels to the outgoing channel. The response structure allows
+addition to a response at any stage by inserting extra reports. One
+of the uses of this feature is the response <I> prefixer</I>, which sits on a
+response channel and adds a fixed report to the start of every
+response that passes through it, as a way of describing where the response
+has been. This helps to identify the origin of a particular
+response. Another use of the response structure is the response <I>
+filter</I>, which removes low priority responses from the response
+channel while passing high priority responses on. The priority of a
+response is set using a special <I> priority</I> report type. A response to
+a request from the interface code, as opposed to an asynchronous
+events, use the special report type <I> reply</I> for one of their
+component reports.
+
+<p>
+<A NAME="2.1.3"></A><h4>
+2.1.3 Network implications
+</h4>
+<p>
+
+
+<p>
+ The network card must receive and transmit Pandora segments over a single
+20Mbps OS-link, and it may need to generate messages regarding
+resource overflow or network integrity. In addition the concept of the Pandora
+stream must be continued into management of network connections, which
+must be performed under control of requests from the Pandora daemon.
+The following sections therefore describe in detail the implications
+that the fundamental concepts described above have on the network
+software.
+
+<p>
+<A NAME="2.1.3.1"></A><h5>
+2.1.3.1 Pandora streams
+</h5>
+<p>
+
+
+
+<p>
+ To continue the Pandora stream system into the network requires a
+mapping from network connections to Pandora streams. The connections
+have to have properties similar to those of the streams internal to a
+Pandora box, and so they should not interfere with each other unless
+the network card is overloaded. Individual stream overload must be
+handled by the network software, with messages being generated to
+indicate this, and should not degrade other stream performance.
+Ideally a connection should be under full control of the Pandora box,
+including full control over creation and destruction of streams.
+
+<p>
+<A NAME="2.1.3.2"></A><h5>
+2.1.3.2 Pandora segments
+</h5>
+<p>
+
+
+
+<p>
+ The size of the Pandora segments and the frequency of them inside a
+stream must be the driving factors behind the design of the network
+software. From section <A HREF="networking_for_pandora_boxes.html#2.1.2.2">2.1.2.2</A>, the two types of
+segment are quite different: video segments are larger (1860 to 4096
+bytes) and less frequent (2 segments at 25Hz or below) than audio
+segments (68 bytes at 250Hz). Therefore the network software must be
+designed to cope with both sorts of traffic and must maintain a
+quality of service on a per stream basis. In addition the Pandora
+segments contain no checksum or similar validity check, and so, as in
+the internals of the Pandora box, corruption of the Pandora segments
+is not permitted. It has been suggested that rate-based data
+transport protocols like VMTP <B><A HREF="bibliography.html#Bib22">[22]</A></B> or NETBLT <B><A HREF="bibliography.html#Bib12">[12]</A></B>
+are promising candidates for multimedia data transport, providing
+steady reliable transport.  However, each Pandora segment is entirely
+self-sufficient, and needs no other Pandora segment to help describe
+the data it carries. So reliability of the transport of segments is
+not a requirement, although it is desirable.  Then, the underlying
+network need only meet the requirement for smooth transport of data.
+
+<p>
+<A NAME="2.1.3.3"></A><h5>
+2.1.3.3 Data transport
+</h5>
+<p>
+
+
+<p>
+ Unlike the other high bandwidth subsystems of the Pandora box the
+network is only connected to the server with a single INMOS OS-link,
+which affects the performance available in terms of both bandwidth and
+stream multiplexing. Data for many streams is multiplexed onto the
+INMOS OS-link for both reception and transmission. Large video
+segments may take a long time to transmit over this link (up to 4.5
+milliseconds, or even 5.3 milliseconds if data is travelling over the
+link in both directions).  This could have a major impact on the audio
+performance of two networked Pandora boxes, especially if audio is
+kept waiting for transit down the link by more than one large video
+segment.
+
+<p>
+<A NAME="2.1.3.4"></A><h5>
+2.1.3.4 Request, responses and events
+</h5>
+<p>
+
+
+
+<p>
+ The most obvious choice of control mechanism for the network card is
+the request and response system used throughout the rest of the
+Pandora box. This requires adapting the Pandora libraries to add new
+processor and process addresses for the new processor and its
+software, and increasing the requests to allow full control of the
+network. However, the request and response system places control
+entirely in the hands of the Pandora box software, which is designed
+for the reliability of internal Pandora box connections and not the
+world of lightweight network connections. The latter may be broken due
+to forces external to the Pandora box, for example catastrophic
+network failure (i.e. someone unplugging the network connection),
+whereas the former will run perfectly provided the Pandora box itself
+is not vandalised. Also in a networking situation a connection may take a
+long time to set up, especially if compared to an internal connection.
+If the request/response system is used, a choice would have to be made
+as to when to send the response indicating a successful connection. If
+a response indicated a connection would be attempted, then at the
+failure or success of that connection an asynchronous message would
+need to be generated by the network which the control software would
+have to handle. On the other hand, if the network waited until a
+connection had been established over the network before responding to
+the request then, as the Pandora system waits for the response after a
+request, the whole control of the Pandora system would have had to wait
+for the network to make that connection.
+
+<p>
+ Another problem with the Pandora implementation of the event system
+using the response channel is that none of the event messages is acted
+upon. Each subsystem is responsible for managing its own overload
+conditions, which is not unreasonable for the video and audio
+subsystems as they have full control over their resources, and any
+asynchronous messages are just logged by the Pandora daemon on the
+Unix workstation. However, the network subsystem does not have full
+control over its resources, as network performance depends on other
+network users. Overload can occur due to entirely external reasons, to
+which the only solution is higher level control.
+
+<p>
+ There are three options for coping with these problems: add the
+handling of unreliable connections and asynchronous responses to the
+Pandora box control software; force the network to provide unbreakable
+instantaneous connections; take the network out of the request and
+response system and so force the Pandora control system to be enhanced or pass
+responsibility for handling a misbehaving network onto the user. As the
+CFR is quite unreliable and has many sources of failure it is
+unreasonable to choose the second option. The first option would
+require major changes to the control software, which is outside the
+scope of the chosen research. Choosing the third option turns the
+networking card into a seperate device with integral device driver, to
+which simple commands are sent, from which asynchronous events are
+received, and data transmission and reception are handled without any
+overheads for the rest of the system. It logically removes the network
+card from the Pandora box in a more modular approach than the
+integration of the other parts of the Pandora box. This frees the
+Pandora control software from any dependence on the particular network
+to which it is attached, and it makes the network interface usable in
+applications other than a Pandora box. It also makes the network code
+more reliable as it is testable on its own without any other Pandora code.
+
+<p>
+<A NAME="2.1.3.5"></A><h5>
+2.1.3.5 Implications of the system
+</h5>
+<p>
+
+
+
+<p>
+ The Pandora box is a large stand-alone system with complex
+interacting subsystems, driven by many microprocessors. Debugging such
+a system can be difficult, especially the network subsystem, as
+it is the furthest subsystem from the host. It does have a spare INMOS
+OS-link accessible when prototyping, and this can be used for
+debugging.
+
+<p>
+ Once the Pandora system with seperate network cards were in general
+use, access to the debugging link was difficult due to the physical
+casing of the Pandora box. In addition, debugging a collection of
+physically distributed Pandora boxes, necessary because of their
+interactions, makes it necessary to have the better alternative of
+supplying the network software with a network-based debugging
+interface.
+
+<p>
+<A NAME="2.2"></A><h3>
+2.2 Constituent parts of Pandora
+</h3>
+<p>
+
+
+<p>
+ The subsystems of the Pandora box have different networking
+requirements, in terms of latency, jitter, reliability, and more
+subtle features. Each subsection below starts with a description of
+the hardware of a subsystem, followed by an examination of the
+implementation of the software driving that hardware. The subsections
+end with a short discussion of the networking implications of the
+subsystem.
+
+<p>
+ Note that there have been two major versions of the hardware for the
+Pandora box (in terms of the subsystems), and these are described
+below as Pandora 1 and Pandora 1a.
+
+<p>
+<A NAME="2.2.1"></A><h4>
+2.2.1 The Pandora interface
+</h4>
+<p>
+
+
+<p>
+ A Pandora stream starts at a data source, which produces Pandora
+segments depending on some source-specific parameters. It then
+travels through the server card, which routes it to a sink, whose
+behaviour may depend upon sink-specific parameters. (The source or
+sink may be the network, which a single Pandora box regards as a start
+or end point for data.)
+
+<p>
+ The management of streams, creation and destruction of streams, the
+control of the stream flow and the control of the source- and
+sink-specific parameters, is performed by the interface subsystem.
+
+<p>
+<A NAME="2.2.1.1"></A><h5>
+2.2.1.1 Hardware
+</h5>
+<p>
+
+
+<p>
+ The original plans for communication between the Pandora box and the
+workstation was by means of a SCSI interface. The Pandora box would
+provide the multimedia facilities with the control software (the <I>
+interface</I> <B><A HREF="bibliography.html#Bib65">[65]</A></B>) running on the workstation. This required one of the
+subsystems to have a SCSI interface. The data rates of Pandora audio streams
+are very low compared to video streams, especially considering it is
+only telephone quality. Also it is very hard to listen to more than
+one audio source at once, whereas a workstation may be required to
+display many video images. These thoughts led to the idea that the
+audio processing card would be the least heavily loaded of the Pandora
+box, and so would be the best option for the placing of the SCSI
+interface attached to the workstation.
+
+<p>
+ To make the initial implementation of the Pandora system easier, it
+was then decided to place the interface software inside the Pandora
+box, on its end of the SCSI connection. In the end, the SCSI interface
+was not fully supported; instead an INMOS OS-link connecting the audio
+processing card to the workstation was used for the control. Also,
+despite the plans, the Pandora interface software was never moved into
+the workstation, and remains on the audio card.
+
+<p>
+ So the Pandora interface has no
+dedicated hardware, either to control or maintain.
+
+<p>
+<A NAME="2.2.1.2"></A><h5>
+2.2.1.2 Software
+</h5>
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/interface.ps"> Figure 2.4 : Process and Channel Structure of the Interface Software</A><A NAME="Fig2.4"></A>
+
+
+
+<p>
+ The interface layer in the Pandora box provides the control mechanisms
+for handling video and audio streams, from sources, through the server
+and network layers, to sinks. It is connected to the workstation by
+one INMOS OS-link, over which it multiplexes asynchronous
+events (such as those generated by overflowing buffers in the audio
+processing code) and responses to requests from the workstation. As
+described above in the request-response section the interface code was
+designed to handle only one request from the workstation at any one
+time.
+
+<p>
+ The process structure, shown in figure <A HREF="networking_for_pandora_boxes.html#Fig2.4">2.4</A> divides into
+three areas:
+
+<p>
+<OL>
+
+
+<p>
+<LI>Host Management
+
+<p>
+ The <I> host state</I> process attempts to keep track of the state of
+the attached workstation. This is so that the <I> host TX</I> process, which
+sends responses to the host over the INMOS OS-link, only sends
+messages if the host is working. The host is deemed working if the
+<I> host RX</I> process receives a request, and is deemed to be not
+working if the <I> host TX</I> process fails in an attempt to send a
+response to the host. So the <I> host RX process</I> informs the <I>
+host state</I> process whenever it receives a request, then it forwards
+the request to the <I> request handler</I>.
+
+<p>
+</LI>
+<LI>Request Management
+
+<p>
+ In the original design of Pandora, where there was no control path from the network, 
+a request arrived at the <I> configurer</I> from the host management processes. This process converts
+external requests into one or more internal Pandora requests. If the
+request required replies from the internal Pandora requests then the
+<I> configurer</I> process would block until it had received the
+replies. The response to the external request can then be sent to the
+<I> host TX</I> process, and the <I> configurer</I> can then await the
+next request.
+
+<p>
+ As described above, the single request/response access through the
+Pandora daemon to all of the Pandora features was a performance
+bottleneck for complicated applications. Also, the Pandora box was
+tied to the Unix workstation as it had to be controlled by the Pandora
+daemon. With the advent of new networking software there was a chance
+to improve the request management system to remove these problems by
+adding network access to the request/response system. To do this the
+<I> request handler</I> was added as a layer on top of the <I> configurer</I>.
+This process performs two tasks. First, it
+buffers requests for the <I> configurer</I>, to allow concurrent
+requests from applications. Secondly it generates external
+requests for the <I> configurer</I> from responses it receives from the 
+<I> response demultiplexer</I>. These responses must have the
+new, special report type <I> command</I>, and may be generated by any
+process on the response path. The <I> request handler</I> intercepts the
+replies generated by the <I> configurer</I> process so that it knows
+when it can send another request to the <I> configurer</I> process.
+Also, these
+replies must be sent to the host if they are in reponse to a request
+from the host, or, using a request to the <I> configurer</I> process, to
+the network if they are in response to a network-sourced request.
+
+<p>
+</LI>
+<LI>Response management
+
+<p>
+ The responses from the lower levels of the Pandora software arrive at
+the <I> response demultiplexer</I> process. This looks at the individual
+reports which make a response, to find the type of the response. A
+response with a report type <I> reply</I> is sent to the <I>
+configurer</I> process, as it is the reply to a request the <I> configurer</I> is
+waiting for. A response with a report type <I> command</I> is sent to
+the <I> request handler</I> to be decoded and inserted into the buffer
+for the <I> configurer</I>. All other responses are asynchronous events,
+which are buffered in the <I> event handler</I>, before being forwarded
+to the host.
+
+<p>
+</LI>
+</OL>
+
+
+<p>
+<A NAME="2.2.1.3"></A><h5>
+2.2.1.3 Network implications
+</h5>
+<p>
+
+
+
+<p>
+In the original Pandora implementation, where requests and responses
+always originated from the host OS-link, the interface software had no
+bearing on the network. The addition of control access from the
+network to the interface request/response system does place extra
+requirements on the network software.
+
+<p>
+ Firstly, the requests and their responses in the Pandora system
+require a completely reliable networking subsystem. Each request must
+be checked for corruption, then executed exactly once. The response to
+the request must then reach the destination uncorrupted.
+
+<p>
+ Secondly the network layer must allow connections on a public Sevice
+Access Port (SAP) for any other network entity which may wish to
+control the Pandora interface code. There may be many such clients at
+one time, and so provision for multiple connections per MSNL SAP is
+necessary.
+
+<p>
+ Thirdly, with many clients sending requests at one time there must be
+a suitable amount of buffering of requests, with appropriate responses
+to the clients should the buffering be exceeded.
+
+<p>
+ Fourthly, for the extra network access to be useful, the latency of
+the transport of the requests and responses must be much lower than
+that experienced in the Pandora daemon, less than one millisecond.
+
+<p>
+<A NAME="2.2.2"></A><h4>
+2.2.2 The Audio card
+</h4>
+<p>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/audio.ps"> Figure 2.5 : Hardware, Process and Channel Structure of the Audio Card</A><A NAME="Fig2.5"></A>
+
+
+
+<p>
+The audio processing card on a Pandora box provides both audio input
+and output facilities, in addition to other more esoteric features
+(depending on the hardware version, see below).  It supplies a single
+audio data stream to the server and mixes many audio data streams for
+connection to a speaker. (See figure <A HREF="networking_for_pandora_boxes.html#Fig2.5">2.5</A>.)
+
+<p>
+<A NAME="2.2.2.1"></A><h5>
+2.2.2.1 Hardware
+</h5>
+<p>
+
+
+<p>
+The audio processing board contains a T425 transputer <B><A HREF="bibliography.html#Bib31">[31]</A></B>,
+DRAM (256 kilobytes on Pandora 1, 1 megabyte on Pandora 1a). Digital
+to analogue conversion and analogue to digital conversion is handled
+by a telephone quality (8bit u-law, 8kHz) CODEC, fed by and
+feeding 512 deep, 8 bit wide FIFOs.
+
+<p>
+Pandora 1 audio processing cards contain a SCSI interface (originally
+planned for communication with the workstation), a full telephone
+handset handling circuit (handset up and down detection, tone dialling
+decode), and an Active Badge transceiver <B><A HREF="bibliography.html#Bib60">[60]</A></B>.
+
+<p>
+Pandora 1a contains an I^2C interface <B><A HREF="bibliography.html#Bib50">[50]</A></B> to manage
+analogue-to-digital converters, a small EEPROM, and eight
+digital-to-analogue converters.  The analogue outputs from these
+control a pitch shifter, as well as contrast and black level settings
+for the video capture card.
+
+<p>
+The audio processing transputer is connected with its four INMOS
+OS-links to the host, the server transputer (audio data in both
+directions), the video capture transputer (requests out) and the video
+mixer transputer (responses in).
+
+<p>
+<A NAME="2.2.2.2"></A><h5>
+2.2.2.2 Software
+</h5>
+<p>
+
+
+<p>
+The main task of the software on the audio processing card is to
+supply the server transputer with a continuous stream of audio data
+from the CODEC (the <I> server writer</I> process), and to take a
+variable number of streams from the server transputer to be mixed
+together prior to playing out through the CODEC (the <I> block
+handler</I> process). These audio streams travel along the OS-link
+between the two processors.
+
+<p>
+There may be jitter in the output streams because of the paths taken
+from their sources, and the clock rates used by the sources and sink
+will almost certainly differ slightly. To remove the effects of these
+infelicities, clawback buffers are implemented in the <I> block
+handler</I> process just before the output streams are mixed, as
+described in <B><A HREF="bibliography.html#Bib6">[6]</A></B>. The audio software also tries to prevent
+echoes due to sound from the speaker being reflected by the room back
+to microphone, by reducing the input level (from the microphone) when
+the output level (to the speaker) is above a certain value, in a
+three-state process: the first state applies no input level reduction;
+the second state reduces the input level by half; the third state
+reduces it to 20%. Moving from the first state to the second, or the
+second to the third, occurs when the output level exceeds the
+threshold in a 2 millisecond period, whereas the other direction
+requires the output level to be below the threshold for 20
+milliseconds.
+
+<p>
+The other extra facilities provided by the audio processing cards are
+not supported by the Pandora stream paradigm --- instead, it is all
+under the control of the interface using the request-response
+mechanism. So extraction of the data from the analogue-to-digital
+converters, or control of the pitch shifter, must be performed with
+requests to the interface, and no data streams are set up.
+
+<p>
+<A NAME="2.2.2.3"></A><h5>
+2.2.2.3 Network implications
+</h5>
+<p>
+
+
+
+<p>
+The audio software is, within some limits, easy to satisfy in terms of
+network performance. The data streams are low bandwidth, and any
+network jitter can be recovered from by the buffering. However, a
+slapdash approach is inappropriate as good performance is required.
+Here is a closer look:
+
+<p>
+<OL>
+
+
+<p>
+<LI>Audio bandwidth
+
+<p>
+A single Pandora audio stream, 136 kbps, is considered to be a low
+bandwidth stream, especially when compared with the data rates
+supported by the ATM networks Pandora was designed for (50 or 100
+Mbps). It is also low bandwidth when compared to the 20Mbps INMOS
+OS-links along which it must travel to the network interface, so this
+should not be a problem.
+
+<p>
+</LI>
+<LI>Network jitter and latency
+
+<p>
+Even though the audio bandwidth does not place a heavy load on the
+network interface, there are other considerations which do. It is very
+important that the latency introduced by the network and network card
+is kept to an absolute minimum, and similarly the jitter must be kept
+as small as the network itself will allow. These are important as
+humans understand conversation, and general interaction with the
+world, using their auditory sense more acutely than their visual
+sense. As an example, with a videophone conversation it is far harder
+to transfer information between users if the audio connections
+disappear, than if the video connections disappear. If the streams are
+only degrading, then if audio segments are lost in the network layer
+this introduces clicks and gaps in the audio heard by users, whereas
+lost video segments frequently go unnoticed, and users perceive little
+degradation.
+
+<p>
+To quantify this, the perceived audio performance is affected by the
+end-to-end delay and any data lost or dropped by the stream. Large
+jitter (i.e. greater than the downstream buffer size) causes data to
+be dropped. Total end-to-end delay is the individual transport stage
+times of the data plus the buffering at each stage. The <I> server
+writer</I> process introduces 4 milliseconds of buffering in assembling a
+segment for the server transputer. There is extra buffering in the
+server and network cards (at least one segment per stage). On a
+standard stream this will account for at least 4 more buffering
+points, two servers and two networks.  Finally, the <I> block
+handler</I> process attempts to remove all upstream jitter with its
+clawback buffering. The size of this buffer equals the maximum jitter
+in its stream (with a target minimum of 8 milliseconds). Now, the
+end-to-end delay of an audio stream should be bounded by two values: a
+maximum end-to-end delay of 50 milliseconds (100 milliseconds
+round-trip) for echo to not be a problem, less than 10 milliseconds
+round-trip for it to be imperceptible; a minimum end-to-end delay of
+the video end-to-end delay, to maintain lip synchronisation on video
+conferencing. These two constraints cannot both be met without
+streaming video directly from camera to display, not buffering frames
+at any point in its path. As the video frames are buffered in Pandora,
+one of the constraints will be broken, and as audio is more important
+than video, the maximum constraints should be met. To keep to this
+maximum end-to-end delay the latency and the jitter in transporting
+streams must be kept low (jitter 5 milliseconds and latency 5
+milliseconds).
+
+<p>
+</LI>
+<LI>Reliability
+
+<p>
+The low bandwidth of audio streams implies that providing fairly
+reliable network transport for them should not be difficult. However,
+any lost segments will not be recoverable in any form by an audio
+sink (unlike with video where successive frames may be very similar).
+So audio streams require a higher degree of reliability than, for
+example, video streams. But there is no need to implement fully
+reliable communication, provided the segment loss is kept low. Each
+loss will be audible, but a single click at perhaps 30 second intervals is not
+going to worry the user too much. This would be a lost segment rate
+(with segments of 4 milliseconds duration) of at most 1 in 7500.
+
+<p>
+</LI>
+<LI>SCSI interface and extra facilities
+
+<p>
+As the SCSI interface is not fully implemented on Pandora 1 and it was
+not included in Pandora 1a, there are no special requirements placed
+on the network card to support it.
+
+<p>
+The extra facilities provided by the audio processing cards such as
+I^2C connections are controlled and read by the request-response
+mechanism, so again the network interface need not supply any feaures
+to support them.
+
+<p>
+</LI>
+</OL>
+
+
+<p>
+<A NAME="2.2.3"></A><h4>
+2.2.3 The Video Capture card
+</h4>
+<p>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/capture.ps"> Figure 2.6 : Hardware, Process and Channel Structure of the Capture Card</A><A NAME="Fig2.6"></A>
+
+
+
+<p>
+The video capture card digitises and compresses the output from a
+single camera, providing the server card with multiple Pandora video streams. (See figure <A HREF="networking_for_pandora_boxes.html#Fig2.6">2.6</A>.)
+
+<p>
+<A NAME="2.2.3.1"></A><h5>
+2.2.3.1 Hardware
+</h5>
+<p>
+
+
+<p>
+The video capture card contains a T425 transputer with 1 megabyte of
+memory on Pandora 1a, and 256 kilobytes of DRAM on Pandora 1. In
+addition there is 1 megabyte of VRAM used for the capture of
+compressed images.
+
+<p>
+The video signal from the capture is digitised to 256 grey levels
+(using contrast and black level set by the digital-to-analogue
+converters in the audio processing card in Pandora 1a), and put into
+the VRAM accessible from the transputer. The software has to transfer
+the data from the VRAM to FIFOs for the compression card. The
+compression card can be switched into a null compression mode, where
+it just passes the data through, or it performs DPCM compression, line
+and pixel discarding. The compression card extracts the video
+information from the FIFOs, and inserts its results into another set
+of FIFOs, which are readable by the server transputer. The horizontal
+and vertical synchronisation pulses from the video source are
+available to interrupt the processor.
+
+<p>
+The video capture processor is connected with its INMOS OS-links to
+the audio card (requests in), the mixer card (requests out and
+responses out) and the server card (control of the FIFO data and
+responses in).
+
+<p>
+<A NAME="2.2.3.2"></A><h5>
+2.2.3.2 Software
+</h5>
+<p>
+
+
+
+<p>
+The video capture software is split into three parts: a video
+synchronisation signal handling process; a FIFO handling process; a
+control process to glue everything together.
+
+<p>
+The video synchronisation process maintains a knowledge of the current
+stage of the video camera's image, in terms of lines and interlace
+field, by counting horizontal synchronisation pulses and resetting the
+count on vertical synchronisation pulses. While capturing data for
+streams the synchronisation process informs the control process at
+successive 38 horizontal lines (one eighth of a field). It is worth
+noting that this process is scheduled and run at every horizontal line
+synchronisation pulse, i.e. approximately every 65 microseconds.
+
+<p>
+The control process maintains the following information pertaining to
+streams: capture rate; capture size; scale; area of the camera's view
+to be captured. It uses this in conjunction with the information from
+the video synchronisation process to go round the streams one by one,
+informing the FIFO handling process when a segment of data has been
+captured into the VRAM. By doing this it maintains a fair distribution
+of capturing to the different streams even under overload conditions.
+
+<p>
+The FIFO handling process accepts the prods from the control process
+on a per segment per stream basis. Using this information it sets the
+compression card parameters then transfers data from the VRAM into the
+compression input FIFOs in <I> slices</I> (a subdivision of a video segement's data, but still a whole number
+of video lines). As each slice is inserted into the
+compression FIFOs the server is informed via the <I> slice buffer</I> that the
+slice has been inserted, so that the server processor can then extract
+the compressed slice from the output of the compression system.
+
+<p>
+The capturable sizes are 64 by 56 and 128 by 112 pixels. 256 by 224
+pixels is possible, but it produces too much data for the rest of the
+Pandora system to cope with at video frame rates, so it is not used.
+With 256 grey levels and 25 frames per second this yields data rates
+of 0.7 megabits per second and 2.8 megabits per second respsectively.
+With DPCM compression these figure are reduced by a factor of 2, to 0.35 and 1.4
+megabits per second. It should also be noted that half of this frame
+rate, 12.5 frames per second, is often almost indistinguishable from
+the full frame rate, especially at small sizes. These data rates may
+not be considered high in the future, but Pandora was originally a
+demonstration of, and experiment into, what is achievable on networks
+of accessible bandwidth of 10 megabits per second.
+
+<p>
+<A NAME="2.2.3.3"></A><h5>
+2.2.3.3 Network implications
+</h5>
+<p>
+
+
+
+<p>
+Unlike the audio streams, the high bandwidths required by some instances of captured
+video streams need careful handling in the network system:
+
+<p>
+<OL>
+
+
+<p>
+<LI>Data copying
+
+<p>
+ Copying an audio segment from one memory area to another may be done
+very quickly because of its size, and so may be performed if necessary
+for a fast networking algorithm or efficient memory use. However, a
+segment of video data is up to 8 kilobytes long, so as little copying
+of the data as possible should be done. For the same reason the
+networking software must manage the data reception over its OS-link with
+the server in a memory-access efficient manner.
+
+<p>
+</LI>
+<LI>Overload of transmission of video data
+
+<p>
+The network interface must be able to cope gracefully with overload on
+transmission. Initially this means maintaining as high a bandwidth as
+possible without wasting resources on data which is not going to be
+successfully transmitted. As soon as the overload situation is
+detected the network software could originate some commands to reduce
+the bandwidth demand of the stream, by asking the capture system to
+increase the compression or reduce the picture size. There are two
+problems involved in following this course: the network
+software immediately becomes specialised to the capture software;
+overload in the network may manifest itself in many ways, which would lead to similar
+network overload conditions producing different effects.
+
+<p>
+ Inside Pandora a principle of local adaptation to exceptional stream
+conditions applies, so the best solution is to adapt as best as
+possible to the overload by discarding unmanageable data at the
+earliest opporunity, and generate overload messages.
+
+<p>
+</LI>
+<LI>Network transmission buffering of video data
+
+<p>
+ Buffering of more than one Pandora segment per stream is necessary
+for audio data to accomodate network jitter. More than one video
+segment per stream needs to be buffered as the peak data rate of
+arrival of video may be higher than the network transmission rate for
+a single stream. So in the case of video transmission, a decision has
+to be taken on how much buffering to provide.
+
+<p>
+ Initial implementations of the network software were written for a
+network card containing 64 kilobytes of memory for code and data. With
+the video segments taking up to 4 kilobytes each and 2 segments making
+up a picture the absolute maximum amount of buffering available for a
+video stream would have been 8 frames. At a full frame rate of 25
+frames per second, this is one third of a second of video buffered at
+one time. Accounting for code size and multiple streams meant that the
+real limit was much lower. Unlimited buffering up to memory size was
+allowed, and no ill effects were seen.
+
+<p>
+ Further implementations of the network card had 2 megabytes of
+memory. Initially again the only limit on buffering of data was the
+amount of memory available. Now when the source rate was higher than
+the transmit rate (i.e. the network was a bottleneck) the segments
+backed up in memory, leading at some stages of testing to a five
+second delay between source and sink Pandora boxes.
+
+<p>
+ Choosing the amount of buffering can be done either in terms of
+buffer memory size, number of segments, or temporally. Limiting by
+memory size affects different types of video in different ways, and
+does not generalise to other forms of data. Similarly the number of
+segments which make up a video frame differs according to compression
+rate. So the third option was chosen, to buffer up to 150 milliseconds
+of data. This is a suitable length of time as it does not affect
+inter-stream synchronisation too much, yet it allows for more than the
+expected amount of jitter in the network. As a principle, buffering only needs to be provided
+to allow full bandwidth concurrent operation of the hardware. Providing enough buffering to cope with the
+jitter in the network is therefore sufficient.
+
+<p>
+</LI>
+</OL>
+
+
+<p>
+<A NAME="2.2.4"></A><h4>
+2.2.4 The Video Mixer card
+</h4>
+<p>
+
+
+
+
+
+
+<A HREF="ps/mixer.ps"> Figure 2.7 : Hardware, Process and Channel Structure of the Mixer Card</A><A NAME="Fig2.7"></A>
+
+
+
+<p>
+ The video mixer card in the Pandora system takes the analogue video
+output from the workstation, and mixes it with the output from a
+framestore on the video mixer card itself, using a digital mask to
+determine which video output is visible at each point on the
+dislay. The processor fills the framestore with video data taken from
+the output FIFOs of the decompression unit. (See figure <A HREF="networking_for_pandora_boxes.html#Fig2.7">2.7</A>.)
+
+<p>
+<A NAME="2.2.4.1"></A><h5>
+2.2.4.1 Hardware
+</h5>
+<p>
+
+
+<p>
+ The video mixer card hardware is very similar to the video capture
+hardware, with the capture/compression hardware replaced by
+decompression/display generation hardware. It contains a T425
+transputer with 1 megabyte of memory on Pandora 1a, and 256 kilobytes
+of memory on Pandora 1. In addition there is 1 megabyte of VRAM used
+for the framestore. The analogue output from the framestore is
+generated using an 8 bit colour lookup table. The workstation analogue
+video output is mixed with that of the Pandora framestore using the
+values in a 1 bit deep pixel mask. A `0' bit in the pixel mask lets the
+Pandora video show, a `1' bit in the pixel mask shows the workstation
+video. The vertical synchronisation signal from the workstation
+analogue video signal is available to interrupt the processor.
+
+<p>
+ The server processor writes compressed video data into the input FIFOs
+of the decompression card, which decompresses into output FIFOs from
+where it must be read by the processor, which can then place it into
+the framestore VRAM.
+
+<p>
+ The OS-links of the video mixer transputer are connected to the video
+capture processor (requests and responses in), the server processor
+(requests out, segments in), and the audio processor (responses out).
+
+<p>
+<A NAME="2.2.4.2"></A><h5>
+2.2.4.2 Software
+</h5>
+<p>
+
+
+<p>
+ The video mixer is fed <I> slices</I> (see section <A HREF="networking_for_pandora_boxes.html#2.2.3.2">2.2.3.2</A> above)
+of compressed video data by the server
+processor through the decompression card and associated FIFOs. Control
+of the decompression unit is in the hands of the server processor. The
+video mixer processor just pulls data from the FIFOs to buffer memory
+and copies it to the framestore at the correct place. It uses three
+main processes for this:
+
+<p>
+<OL>
+
+
+<p>
+<LI>FIFO handler process
+
+<p>
+ The FIFO handler process takes segment slice descriptors from the
+server card over the link which connects the two transputers (via the
+buffer), and data from the FIFOs connected to the decompression
+card. The segment slice descriptors identify which stream they are
+associated with, and the FIFO handler requests buffer space on a per
+stream basis for the incoming video data from the buffer handler. Once
+a complete segment of a stream is ready its buffer information is
+passed to the blitter process. If a command is received by the FIFO
+handler to tell it to delete a stream it informs the blitter process,
+relying on it to free the memory cleanly after it has finished with
+it.
+
+<p>
+ In cases of emergency when the decompression hardware needs to be
+restarted the mixer software must inform the server processor to
+perform the reinitialisation, as the server has control of the input
+to the decompression unit. To do this it breaks the top-down approach
+to requests, and has a request channel going out of it to be
+multiplexed with other requests being passed on along the request
+path. This mechanism therefore also relies on the server being further down the request path than the mixer.
+It works, but it is inelegant.
+
+<p>
+</LI>
+<LI>Blitter process
+
+<p>
+ The blitter process accepts buffers for streams from the FIFO handler,
+and displays them by copying from the DRAM to the VRAM, clipping the
+image as necessary. It watches the vertical synchronisation signal
+from the workstation monitor to wait for the flyback period, so that
+when this occurs, all the streams for which it has received data from
+the FIFO handler are updated. This mechanism is used to reduce the
+tearing effects seen when updating the framestore as the electron beam
+in the monitor travels through the updating information.
+
+<p>
+ If the FIFO handler tells the blitter process to deallocate a buffer
+it removes the corresponding stream from its display list, and then
+passes the information to the buffer handler process.
+
+<p>
+ The blitter process is also responsible for maintaining the mask to
+determine which of the Pandora or workstation output is displayed at
+each pixel of the display, under control of requests.
+
+<p>
+</LI>
+<LI>Buffer handler process
+
+<p>
+ The buffer handler process maintains a free and a used list. If a
+request comes in from the FIFO handler process for buffering for a
+stream, or a change in allocation, it will attempt to do this without
+any data movement, allocating contiguous memory for the buffer from
+the free list, and returns this information to the FIFO handler. If
+this proves impossible it sends out a shuffle request to the FIFO
+handler in response. The FIFO handler informs the blitter process,
+which replies to the buffer handler. The buffer handler is then free
+to shuffle the used and free lists to allocate the memory if it can.
+It then replies to the FIFO handler, which will restart the blitter
+process.
+
+<p>
+</LI>
+</OL>
+
+
+<p>
+<A NAME="2.2.4.3"></A><h5>
+2.2.4.3 Network implications
+</h5>
+<p>
+
+
+
+<p>
+ The features of real-time video data transport required by the video
+mixer clearly relate to those of the video capture. However, the
+receiving of high bandwidth real-time data does have different
+implications for network software than transmission. In addition the
+software for the mixer handles its resources in a manner which should
+be supported by the network software.
+
+<p>
+<OL>
+
+
+<p>
+<LI>Dropping of video segments and frames
+
+<p>
+ The compression system used by Pandora does not use interframe
+information, so losing a video frame does not impact on the
+decompression of other following or preceeding frames, unlike a more
+complicated compression system like MPEG <B><A HREF="bibliography.html#Bib24">[24]</A></B>, where the
+loss of a frame of video will have effects lasting until the next
+I-frame is sent. This means the transport of Pandora video data need
+not be reliable, and it is quite acceptable for the network software
+to drop video frames from high bandwidth streams if it or the network
+is overloaded, or if higher priority, lower bandwidth streams need to
+be transmitted. Indeed, there is no inter-segment compression either,
+so individual video segments may be dropped without the display
+failing, although this is less pretty to see as it leads to parts of a
+video window being static whilst others remain active. This is
+especially noticeable if, say, the first segment of a frame usually
+gets through, and later segments do not, as the lower regions of a
+picture remain unchanging while the upper parts change as expected.
+<B><A HREF="bibliography.html#Bib73">[73]</A></B> presents a layered video coding model which would work
+significantly better under these circumstances, but if segments are
+not dropped at all the results are always better.
+
+<p>
+</LI>
+<LI>Video transmission and reception
+
+<p>
+ The balance between video transmission and reception at overload must
+be made. It has been suggested that transmission of real-time data
+should be given precedence over its reception (<B><A HREF="bibliography.html#Bib6">[6]</A></B>).  The
+reasoning behind this is that a user who is overloading his local
+system should experience degradation of that system before others
+perceive any performance loss. The user can then take corrective
+action, without affecting others. There are a few disadvantages to
+this approach:
+
+<p>
+ To control the system a user, or agent for the user, must take
+corrective action. It requires monitoring of local sinks and the
+network interaction, to produce a reaction of controlling the
+streams. Implementation of automatic control would require monitoring
+of data missing from incoming streams, generating a response to control
+some (maybe different) streams. With receive priority over
+transmission, the network software will inform higher levels that its
+transmission queue is overflowing on a per stream basis, and then
+control of the other streams will have to be affected. This removes
+the need for complicated measuring of data missing from incoming real-time streams.
+
+<p>
+ As stated in <B><A HREF="bibliography.html#Bib6">[6]</A></B> this principle is reversed for storage
+systems, where recording is much more important than playback ---
+recording an event is only possible at the instant it happens;
+playback can occur as many times as desired once a recording has been
+made. (The flip side to this, however, is the source providing the
+data for recording wants the outgoing stream to have priority over its
+incoming streams.)
+
+<p>
+ Also as stated in <B><A HREF="bibliography.html#Bib6">[6]</A></B>, there is a principle of command
+priority over data priority. This can be handled easily at the
+transmission level, by degrading data transmission before command
+transmission, yet a degradation of the performance of the receive side
+is indiscrminate.
+
+<p>
+ In addition, in an ATM switch network it is unfriendly not to receive
+data once it has reached you through the rest of the network, as it
+will have taken up bandwidth which could otherwise have been used more
+effectively.
+
+<p>
+ Finally, if network entities only transmitted and never received,
+there is no way for automatic control to take over and tell things to
+throttle back, as they are only shouting not listening.
+
+<p>
+</LI>
+<LI>Resource management in the mixer software
+
+<p>
+ If a video stream is being successfully received by the mixer
+software then it will have a buffer allocated to it. Buffer memory on
+the mixer card is not a big resource, and it runs out even with fairly
+reasonable demands for displayed video streams. So it is important to
+maintain active streams in preference to others which would be dropped
+because of lack of buffering resource in the mixer.
+
+<p>
+</LI>
+</OL>
+
+
+<p>
+<A NAME="2.2.5"></A><h4>
+2.2.5 The Server card
+</h4>
+<p>
+
+
+
+<p>
+ The server card is the main data switch inside a Pandora box. All
+video and audio data pass through the server card to and from the
+network, and even locally from audio to audio card or capture to mixer
+card.
+
+<p>
+<A NAME="2.2.5.1"></A><h5>
+2.2.5.1 Hardware
+</h5>
+<p>
+
+
+<p>
+ The server card contains a T425 transputer with 256 kilobytes of
+static RAM (for speed). It has access to the compressed data FIFOs on
+the capture card and the decompression FIFOs on the mixer card. Its
+four INMOS OS-links are connected to each of the other processors:
+audio (segment data in both directions); video capture (responses out,
+slice descriptors in); video mixer (requests in, slice descriptors
+out); and network (commands, replies and data in both directions).
+
+<p>
+
+
+
+
+
+<A HREF="ps/serverprocesses.ps"> Figure 2.8 : Process and Channel Structure of the Server Software</A><A NAME="Fig2.8"></A>
+
+
+
+<p>
+<A NAME="2.2.5.2"></A><h5>
+2.2.5.2 Software
+</h5>
+<p>
+
+
+<p>
+ The server software divides into four main parts: a buffer allocator;
+sources; sinks; a central switch fed by the sources, feeding the sinks
+(see figure <A HREF="networking_for_pandora_boxes.html#Fig2.8">2.8</A>).
+
+<p>
+ The buffer allocator provides buffer memory for the source handling
+processes, and accepts buffer freeing messages from every process
+which may finish with a buffer. To do this it maintains a buffer usage
+count, set to 1 on initial allocation, and accepts usage increment and
+decrement messages from processes. A process sends an increment
+message when it sends the buffer to another process, and decrement
+messages when it has finished with the buffer. On decrementing the
+usage count to zero the allocator frees the buffer.
+
+<p>
+ Each of the sources send segment descriptors to the central switch
+when either data arrives from the data sourcing cards or, in the case
+of the test source, when generated internally. Buffer memory for the
+segments must be requested from the allocator process using the above
+protocols.
+
+<p>
+ The central switch maintains a set of destinations for each stream it
+may receive. When the switch receives a segment from a source, for
+every destination of the segment's stream that is ready to accept a
+segment it increments the usage count of the buffer associated with
+it, and forwards the data to the destination. Once the switching is
+complete it tells the allocator to decrement the usage count. This
+system lets a single source stream be sent to more than one
+destination, without copying of data or requiring two sources. Indeed,
+the audio source only provides one stream. For a video conference, the
+audio stream is split to two or more network destinations, and the video stream is sent to both the local
+mixer card and network destinations.
+
+<p>
+ Each of the sink outputs (video mixer, audio replay, network out, and
+an internal test sink) has a handshaking buffer between itself and the
+switch. These processes use a circular buffer to implement a
+FIFO. When the switch sends a segment to be placed in the FIFO the
+buffer replies with a full or not-full signal, to indicate whether it
+could buffer another segment. If the FIFO is full then when a space
+becomes available it signals this information the switch. The sink
+outputs themselves provide a simple handshake to the circular buffers
+to indicate they are ready to accept a segment. The sink outputs will
+inform the allocator process when they have finished with a segment
+descriptor, telling it to decrement the usage count of its associated
+buffer.
+
+<p>
+ The network output process does not follow this outline
+precisely. Instead the switch sends its segments to a splitting
+process, which sends video segments to a low priority buffer and audio
+segments to a high priority buffer. The network output takes items
+from the high priority buffer in preference to the low priority
+segments, which provides both a prioritisation of different streams
+and differing amounts of buffering for the two sorts of traffic.
+
+<p>
+ The circular buffers for different destinations do not have the same
+sizes. In fact the audio sink has 12 items; the mixer and test sink
+process have 4 items each; the network output has two buffers as
+described above, with the high priority audio buffer having 6 items,
+the low priority buffer having 4 items. The circular buffers are
+intended to provide enough buffering to stop data being thrown away
+when the Pandora box is operating just below overload,
+and the sizes of the buffers were chosen by experiment to fulfil this
+criterion.
+
+<p>
+<A NAME="2.2.5.3"></A><h5>
+2.2.5.3 Network implications
+</h5>
+<p>
+
+
+<p>
+ The server software provides prioritisation and buffering of streams,
+and so is very friendly in how it supplies data to the network software. The
+networking software must just take data from the server at the highest
+rate it can do so. The output of the networking software, which links
+to the network source buffer of the server software, is free to send
+data whenever it wants. The network source buffer always tries to have
+a segment buffer allocated to it into which it can receive segments of
+data from the network without having to perform allocation before
+accepting it. So the total impact the server has on the network in
+normal operation is not too great.
+
+<p>
+ However, if the network is overloaded and the circular buffers in the
+server start to fill they may have a large impact on the end-to-end
+delay of streams. So even under overload the networking software must
+continue to take data out of the circular buffers and throw it away.
+
+<p>
+<A NAME="2.3"></A><h3>
+2.3 Network Principles
+</h3>
+<p>
+
+
+
+<p>
+ The above sections detail the hardware and software designs of the
+Pandora system which affect the network interface. This section brings
+these features and requirements together to provide a summary of the
+facilities the network must provide and requirements it must cope
+with. These form the <B> Network Principles</B> for any network support
+for a multimedia communications system.
+
+<p>
+<A NAME="2.3.1"></A><h4>
+2.3.1 Commands, messages and control
+</h4>
+<p>
+
+
+
+<p>
+As discussed above in section <A HREF="networking_for_pandora_boxes.html#2.1.3.4">2.1.3.4</A> the
+control of the network engine in the Pandora box should be performed
+using a system of commands and asynchronous event messages, with the
+data transfer slotting into the system with low overhead. From section
+<A HREF="networking_for_pandora_boxes.html#2.1.3.5">2.1.3.5</A>, this command/message system needs to be
+accessible from the Pandora box, from a debugging port on an OS-link, and from the
+network through a debugging SAP.
+
+<p>
+To implement a debugging SAP and to implement the network access to
+the interface request/response system (section <A HREF="networking_for_pandora_boxes.html#2.2.1.3">2.2.1.3</A>) on
+other SAPs, as well as allowing restricted access to the SAPs for
+Pandora streams, requires support for different types of SAP --- from the
+single-client Pandora SAPs, through a single-client command/message
+debugging SAP, to multiple-client Pandora interface request/response SAPs.
+
+<p>
+With the use of the command/message system, and the logical extraction
+of the network engine from the Pandora box, a mapping is required from
+the network's connections to Pandora's internal streams (see
+section <A HREF="networking_for_pandora_boxes.html#2.1.3.1">2.1.3.1</A>), both in terms of stream handle and quality of
+service. If the network software is viewed as a system in its own
+right, and so may be used in other applications, the veneer between
+the network and Pandora's internals must belong inside Pandora.
+
+<p>
+<A NAME="2.3.2"></A><h4>
+2.3.2 Overload handling
+</h4>
+<p>
+
+
+
+<p>
+ One of the themes of the Pandora software is handling overload
+situations well. A system may run fine with even a heavy load, but if
+an event momentarily pushes it into overload and catastrophic failure
+occurs then the system's usefulness drops. With a networked real-time
+system the possibilities for such `event's are innumerable, hence the
+concentration on overload handling.
+
+<p>
+ Firstly, when overload starts to occur in a portion of the network
+subsystem the rest of the Pandora system should be informed as soon as
+possible (see section <A HREF="networking_for_pandora_boxes.html#2.1.3.1">2.1.3.1</A>). It is important, however,
+not to continuously send messages indicating the overload, as
+generating and handling these messages can easily worsen the
+situation. A good option is to send messages regularly at intervals
+which are long enough for the overloading to have a chance of
+stopping. Using this mechanism the host can reduce its requirements
+when overload occurs, and use a timeout after the last overload
+message to increase its requirements again.
+
+<p>
+ When an overload situation has been detected then any data which will
+be lost due to the overload should be discarded. This means, for
+example, that when data is transferred from the host for transmission
+it is discarded immediately, rather than being sent to the
+transmission process where it will be discarded by an overloaded
+transmitter. This principle should be extended throughout the system,
+using the overload messages mentioned above. However, the second
+principle of local adaptation to overload conditions also applies: in
+some cases it may not be possible for a data source to back off, or it
+may be infeasible. This implies that, even under overload, the network
+should keep sinking data from the server card as fast as possible.
+
+<p>
+ It is usually when under overload that the prioritising of streams
+becomes most important, and that is discussed in more detail below.
+However, as Pandora segments are sent as whole blocks, and partial
+segments are of no use to data sinks, another prioritising issue
+becomes relevant, that of active streams having higher priority than
+inactive streams. As an example, if the network card is overloaded on
+reception, receiving data on three streams, then, if data arrives for
+a fourth stream, that data ought to be discarded. This helps both
+stream independence (see section <A HREF="networking_for_pandora_boxes.html#2.1.3.1">2.1.3.1</A>) and reduces the
+effects of the overloading.
+
+<p>
+ One issue that must always be kept in mind during software design for
+overload conditions is that the complexity of handling overload should
+not significantly reduce the performance, and therefore the threshold
+at which overload occurs.  It is not much use having a card which can
+cope with overload well, if it becomes overloaded with only a single
+video stream, where a simpler implementation of overload handling may
+allow many more streams.
+
+<p>
+<A NAME="2.3.3"></A><h4>
+2.3.3 Quality of service
+</h4>
+<p>
+
+
+
+<p>
+ With the many classes of network connections required by the Pandora
+system (Pandora interface control, command/message debugging, audio,
+video real-time streams) different qualities of service must be
+supported, in terms of reliability, buffering, bandwidth, priority,
+latency and jitter, and tolerance on these. Each of these is discussed
+in more detail below. It should be noted, however, that support for
+different qualities of service is required on a per stream basis, and
+therefore the command/message system must include control of the
+quality of service.
+
+<p>
+<A NAME="2.3.4"></A><h4>
+2.3.4 Data reliability
+</h4>
+<p>
+
+
+
+<p>
+ The various stream styles inside Pandora have different requirements
+when it comes to reliability of transport through the network card.
+For reliability we refer only to providing guarantees that the
+stream's data arrives at its destination. If it arrives at the
+destination then it must do so without corruption (see section
+<A HREF="networking_for_pandora_boxes.html#2.1.3.2">2.1.3.2</A>).
+
+<p>
+ Firstly, from section <A HREF="networking_for_pandora_boxes.html#2.1.3.5">2.1.3.5</A>, a reasonably reliable
+transport mechanism is required to debug the network card over the
+network, although it is not a disaster if some of the commands or messages fail
+to get through when debugging. However, from section <A HREF="networking_for_pandora_boxes.html#2.2.1.3">2.2.1.3</A>, the
+requests and their responses occurring over the Pandora interface
+network access require guaranteed reliable transport.
+
+<p>
+ The real-time data streams are different. From section
+<A HREF="networking_for_pandora_boxes.html#2.2.2.3">2.2.2.3</A> the audio data streams have no
+apparent degradation if 1 in 7500 segments fail to arrive, and no
+guarantee of data transport is required. The video data (section
+<A HREF="networking_for_pandora_boxes.html#2.2.4.3">2.2.4.3</A>) may suffer from even more data loss without
+the system becoming unusable.
+
+<p>
+<A NAME="2.3.5"></A><h4>
+2.3.5 Data buffering
+</h4>
+<p>
+
+
+
+<p>
+ Buffering of data is required for both transmission and reception.
+Data reception buffering should be as large as is needed, assuming the
+rate at which data is removed from the network card by the host is
+greater than its arrival rate from the network itself. If this
+assumption holds then the total amount of receive buffering required
+can easily be calculated, using the number of incoming streams and the
+size of their segments.
+
+<p>
+ Buffering for data transmission is a different issue. The Pandora
+interface network access only requires a single block of data
+buffered, as each block sent must be acknowledged to ensure reliable
+transport. To debug the network card over the network there needs to
+be enough buffering to cope with the messages which may occur and need
+to be transferred to the remote debugger. Audio streams require enough
+buffering to avoid data loss due to jitter caused by resource
+conflicts (e.g. demand for processor cycles during simultaneous
+transmission and reception) while keeping the buffering small to
+reduce data transport latencies (see section <A HREF="networking_for_pandora_boxes.html#2.2.2.3">2.2.2.3</A>).
+Allowing for a jitter of 5 milliseconds, audio streams would require
+8 milliseconds of buffering. Video streams require buffering to cope with the
+disparity between the rate that video data arrives from the host and
+that at which it can be transmitted. From section
+<A HREF="networking_for_pandora_boxes.html#2.2.3.3">2.2.3.3</A>, 150 milliseconds is sufficient.
+
+<p>
+ Only the Pandora interface knows how many Pandora segments a certain
+time corresponds to for audio and video streams, and so only it can
+define the number of blocks buffered. So, to cope with this and the
+other streams' requirements, the amount of buffering allocated to each
+stream must be settable from a command/message. When an attempt to
+exceed the buffering allocation is made appropriate messages must be
+generated, indicating the discard of the data. In the case of
+transmission this messages cannot be considered as overload
+messages, as they are directly in response to an explicit request.
+
+<p>
+
+
+<p>
+<A NAME="2.3.6"></A><h4>
+2.3.6 Data bandwidth
+</h4>
+<p>
+
+
+
+<p>
+ The various stream types have different bandwidth requirements.  The
+Pandora interface network access and the debugging channels are low
+bandwidth, well under 100 kbps. The audio streams are not much higher
+bandwidth (136 kbps, see section <A HREF="networking_for_pandora_boxes.html#2.2.2.3">2.2.2.3</A>). The video
+streams, however, are up to 2.8 Mbps. The network must cope with both
+the low and high bandwidth streams. This may be handled with two
+different algorithms, or with a single algorithm which can handle
+both. It should be noted, however, that the bandwidth of a stream is
+dynamic.  For example, a Pandora video source may have its compression
+or frame size changed while the stream is active, leading to either
+low or high bandwidth streams.
+
+<p>
+ In addition to the actual data bandwidth requirements there is the
+issue of the size of blocks which the data is divided into. For
+example, a stream with a bandwidth of 8000 bits-per-second may consist
+of 1000 blocks per second, each of one byte. In the data transmission path there
+will usually be code executed on a per-block basis, which implies that
+the low bandwidth stream may require a lot of processor time. The low
+bandwidth audio streams can consist of 250 blocks-per-second, compared
+to the high bandwidth video streams which require at most 50
+blocks-per-second (<A HREF="networking_for_pandora_boxes.html#2.1.3.2">2.1.3.2</A>). It is important for the
+network to cope with both of these loads.
+
+<p>
+<A NAME="2.3.7"></A><h4>
+2.3.7 Data priorities
+</h4>
+<p>
+
+
+
+<p>
+ When the network must handle more than one stream at one time there
+must be some prioritising taking place. As discussed in
+section <A HREF="networking_for_pandora_boxes.html#2.2.4.3">2.2.4.3</A>, the video streams can be of lower priority
+than, for example, audio streams. It may be deemed that the priority
+of a stream is inversely proportional to its bandwidth, or its
+requirement for processor time, or some other constraint. However,
+this should be left for the host to decide.
+
+<p>
+ Section <A HREF="networking_for_pandora_boxes.html#2.2.4.3">2.2.4.3</A> also discusses the prioritising of
+transmission and reception of data. This is perhaps more difficult to
+handle dynamically in software than prioritising streams, and so
+requires an earlier design decision. The conclusion arrived at in
+section <A HREF="networking_for_pandora_boxes.html#2.2.4.3">2.2.4.3</A> is that reception of data should have
+priority over the transmission of data, although load sharing is desirable.
+
+<p>
+<A NAME="2.3.8"></A><h4>
+2.3.8 Data latency
+</h4>
+<p>
+
+
+
+<p>
+ The latency of the data transport across the network can have a large
+effect on the usefulness of the data when it arrives. The latency of
+debugging commands/messages can be fairly large, in the order of many
+tens of milliseconds. As discussed in section
+<A HREF="networking_for_pandora_boxes.html#2.2.1.3">2.2.1.3</A>, the Pandora interface network access was,
+in part, added to improve the performance of the control of the
+Pandora box, so the latency of the requests and responses must be
+below one millisecond. Section <A HREF="networking_for_pandora_boxes.html#2.2.2.3">2.2.2.3</A> discusses the
+latency requirements of the audio streams, arriving at a figure of
+5 milliseconds. The video requirements are less stringent, as the
+main problem is lip synchronisation with the audio streams. In
+face-to-face conversations people see lips move before the sound
+arrives, yet after capturing the video and buffering it for display
+there will be a delay of tens of milliseconds, more than the audio
+streams' latency. However, it is
+perceived that a time-lag of 100 milliseconds is still
+acceptable, especially on the low quality Pandora video streams where
+lips can be hard to see.
+
+<p>
+ To achieve the low latencies for the audio and interface network
+access their streams could be allocated high priorities. Even then it
+is important for the network card to provide a low latency path for
+the data on those streams. This rules out, for example, unnecessary
+copying of data on those streams. (See also section
+<A HREF="networking_for_pandora_boxes.html#2.2.3.3">2.2.3.3</A>.)
+
+<p>
+<A NAME="2.3.9"></A><h4>
+2.3.9 Data jitter
+</h4>
+<p>
+
+
+
+<p>
+ Any reasonable jitter in the non-real-time streams will not affect
+their performance. However, jitter in the audio and video streams
+requires careful handling. For example, the clawback buffering in the
+audio playback path helps to remove a small amount of jitter (see
+section <A HREF="networking_for_pandora_boxes.html#2.2.2.3">2.2.2.3</A>), but suffers when a large amount of
+jitter (tens of milliseconds) is inserted into a stream, as there is a
+long-term effect on the buffering. The video streams suffer a lot less, mainly due to
+the large inter-frame time (40 or 80 milliseconds, or more). If there
+is jitter of the order of an inter-frame time then the
+motion starts to appear jerky.
+
+<p>
+<A NAME="2.3.10"></A><h4>
+2.3.10 Data transfer on OS-link
+</h4>
+<p>
+
+
+
+<p>
+ The network card is connected to the server card by a single INMOS
+OS-link. This can be viewed much as the network is viewed, as a
+reasonably fast data pipe. However, data is easily multiplexed over
+the CFR or ATM network, but much less easily over the OS-link. If the
+server-to-network OS-link is considered to be a much higher bandwidth
+connection than the network itself then the simplest handling of data
+transfer, first come first served, may suffice. It is only when the
+arrival rate of data from the network approaches or exceeds the
+OS-link speed that other considerations need be made.
+
+<p>
+ One issue is important regardless of the relative speeds of network
+and OS-link. That is, there should be some attempt to decouple the
+network from the host to get maximum performance from both, using
+appropriate buffer processes. The server processes on the Pandora box
+perform some buffering when communicating with the network, and a
+similar system is required in the network software.
+
+<p>
+<p>
+<center><A HREF="pandora_network_software_implementation.html">Chapter 3 : Pandora network software implementation</A>
+</body></html>

@@ -1,0 +1,4 @@
+#!/bin/csh -f
+ssh -l gavin 10.4.1.1 'cd /folders/www.embisi.com;chmod -R ugo+rx .'
+
+

@@ -1,0 +1,1694 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<title>
+Experimentation for global clocks</title>
+</head>
+<body background="grey.jpg">
+<h1 align=center>
+<A NAME="5"></A>Chapter 5 : Experimentation for global clocks</h1>
+
+
+
+<p>
+ This chapter describes the work performed to evaluate network,
+processor and logical clock performance for time distribution, using
+both the Cambridge Fast Ring networks and the ORL ATM switch
+network. The research described provided support for the belief that
+the accurate distribution of a precise clock is possible with the
+tecohnlogy available in a Pandora system, and an idea as to how a
+complete implementation could perform.
+
+<p>
+The chapter divides into three sections, each describing the work
+carried out, the results gathered, and the analysis of the results,
+for: calculation of message transit times over the ORL ATM switch
+network; calculation of message transit times over the CFR; possible
+logical clock models. (The ATM switch network is described before the
+CFR as gathering information from the CFR had to be performed using
+the ATM switch network, with derivatives of the ATM software.)
+
+<p>
+<A NAME="5.1"></A><h3>
+5.1 ATM switch network transit times
+</h3>
+<p>
+
+
+<p>
+
+
+<p>
+ This section describes the work performed to analyse the echoing of
+cells between two Pandora network cards using the ORL ATM switch
+network. Performance problems related to the capabilities of the
+network cards in this scenario are very similar to those that would be
+present in a distributed clock system for Pandora, and so any
+artifacts introduced by the nature of the hardware do not degrade the
+validity of the results. This is not an attempt to measure the real
+performance of the ATM switch network, only the echo behaviour of two
+Pandora ATM network cards in conjunction with the network.
+
+<p>
+ The experimental system divides into three parts: a data source, an
+echo server and a results gathering node. The data source and echo server
+are both Pandora ATM network cards with specially written
+software. The results gathering node is a DECstation 5000/240 with a
+YES (TurboChannel ATM network interface) board and the MSNL protocol
+implemented in its kernel for accessing the ATM network.
+
+<p>
+ As described in section <A HREF="high_precision_clock_distribution.html#4.5.3.3">4.5.3.3</A> the most accurate
+transit time calculations will probably take place with messages
+consisting of single cells. Therefore the echo server described in
+this chapter echoes cells as they are received, without reassembling
+them into blocks.
+
+<p>
+<A NAME="5.1.1"></A><h4>
+5.1.1 The echo timing system
+</h4>
+<p>
+
+
+<p>
+ The echo timing system uses the MSNL protocol to set up virtual
+circuits describing a route from a data source to an echo server, back
+to the data source, and from there to a results gathering node.  This
+is performed with three MSNL connections, one for each hop. As MSNL
+connections are bidirectional, the same results could have been
+achieved with two connections, but using the extra connection leads to
+a simple design for the software for the Pandora network
+cards. Indeed, the data source and echo server can use identical code,
+and this is described in the following section. After that is a
+description of the software required for the results gathering system.
+
+<p>
+<A NAME="5.1.1.1"></A><h5>
+5.1.1.1 Data source and echo server software
+</h5>
+<p>
+
+
+<p>
+ The task of the data source is to transmit cells to the network on a
+virtual circuit, receive echoed cells on another virtual circuit, and
+retransmit these to the results gathering node on another virtual
+circuit. The task of the echo server is to receive cells from the
+network on its echo virtual circuit and retransmit them on another
+virtual circuit. To manage the virtual circuits both must also handle PDU
+cells received on the MSNL promiscuous port for connection
+management. These may be connection make requests, replies or
+termination requests --- any further MSNL PDU's are ignored.
+
+<p>
+ The echo server maintains two publicly accessible MSNL SAPs, to each
+of which a single MSNL connection may be made, used for the data
+virtual circuits. Also another MSNL SAP is supported, through which the
+echo server can initiate connections.
+
+<p>
+ The data source expands on this by having a third MSNL SAP used for a
+virtual circuit for the data it generates.
+
+<p>
+ As a cell is forwarded by the data source or echo server it is
+timestamped with the value of the local clock. When a cell arrives at
+the results gathering node it contains the following local clock
+timestamps: the originating timestamp from the data source; the
+retransmission timestamp of the echo server; the retransmission
+timestamp of the data source. Using the first and last timestamps, the
+echo delays may be calculated in terms of the local clock ticks of the
+data source. Without loss of accuracy these can be taken to be in
+microseconds (the clocks on the transputers, using the oscillators on
+the Pandora 1a boards, drift by up to 250 ppm, which is one
+microsecond per 4 milliseconds, much longer than an echo time).
+
+<p>
+ The MSNL SAPs, supplied by the data source and echo server are
+accessed using the following port numbers:
+
+<p>
+<UL>
+
+
+<p>
+<LI>Port 0.0.0.2
+
+<p>
+ Connecting to port 0.0.0.2 sets up the virtual circuit for the
+incoming data stream. The data will be retransmitted on the virtual
+circuit created using port 0.0.0.4 below, if that has been set up.
+
+<p>
+</LI>
+<LI>Port 0.0.0.3
+
+<p>
+ Port 0.0.0.3 is the SAP for extra connection management and packet
+sourcing. The two command types are differentiated using the first
+word of data in the cells received on the virtual circuit formed using
+this port.
+
+<p>
+ Connection management cells received here are retransmitted as MSNL
+connection make request cells for the card's port 0.0.0.4. For
+example, a controlling program can connect to port 0.0.0.3 of the echo
+server and send an appropriate cell on the virtual circuit causing a
+request from the echo server to form a connection between its port
+0.0.0.4 and another MSNL node.
+
+<p>
+ Packet sourcing cells contain a word specifying the number of ATM cells
+in the block to be sourced. The block is built
+in the data FIFOs of the network card, each cell containing the local
+microsecond clock time of its generation. The cells are then made
+available to the ATM hardware by inserting the correct number of words
+into the cell tag FIFO (one word per cell). In this manner the data
+transmission rate is limited by the ATM network hardware itself, and
+not the rate at which cells can be inserted into the FIFOs by the
+Pandora network card.
+
+<p>
+</LI>
+<LI>Port 0.0.0.4
+
+<p>
+ Port 0.0.0.4 is controlled by cells sent on the MSNL connection made
+to port 0.0.0.3. This is the outgoing data half of the echo circuit,
+as when an MSNL connection reply PDU is received for this port the
+echo server records the VCI for the transmission side of the
+connection and uses this as the outgoing VCI for echoed cells.
+
+<p>
+</LI>
+<LI>Port 0.0.0.5
+
+<p>
+ Connecting to port 0.0.0.5 sets up the connection to the results
+gathering system from the data source, the second outgoing
+connection for the data source.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+The simple management of connections leads to small code size. It also
+makes the management of individual ATM cells very efficient --- once
+received, they are quickly sorted according to received VCI. Cells to
+be forwarded (hence echoed) are then timestamped, given new VCI's, and
+inserted into the transmission queues. It must be noted that even
+though this code has been highly optimised it still takes 13 to 14
+microseconds to receive, change, and retransmit an echoed cell. Of
+this time, 3.8 microseconds is taken in reading the cell into memory,
+3.8 microseconds writing it out again (these are memory speed
+limited), with the rest spent managing the cell.
+
+<p>
+<A NAME="5.1.1.2"></A><h5>
+5.1.1.2 Results gathering system
+</h5>
+<p>
+
+
+<p>
+ The results gathering system is a DecStation 5000/240 fitted with a
+YES board (a TurboChannel ATM card), running OSF/1, with the specific
+software written in C. It uses MSNL to form connections with the data
+source and echo server to create the data path, then it commands the
+data source to generate data. It uses the Unix ``select'' call to wait
+for 20 milliseconds between receiving a reassembled block of cells
+from the data source and sending out the next data generation
+command. It can determine if blocks are not received even though a
+prod was sent. It will repeat prodding the data source until it has
+received a specified number of blocks. The echo delays, calculated
+from the differences in data source timestamps, of each cell in each
+block are recorded in a textual file as the data is received.
+
+<p>
+ To generate the connections for the data source and echo server,
+the result gathering system runs as follows:
+
+<p>
+<OL>
+
+
+<p>
+<LI>Connect data source to echo server, the outward path
+
+<p>
+ First it forms a control connection to port 0.0.0.3 of the data
+source, sending a cell to request a connection on the data source's port 0.0.0.4
+to the echo server's port 0.0.0.2. It then terminates this control
+connection.
+
+<p>
+</LI>
+<LI>Connect echo server to data source, the echo path
+
+<p>
+ Then it connects to port 0.0.0.3 of the echo server, sending a cell
+to request a connection on the echo server's port 0.0.0.4 to the data source's
+port 0.0.0.2. It then terminates this control connection.
+
+<p>
+</LI>
+<LI>Connect data source to results gathering software, the results path
+
+<p>
+ The results gatherer then forms a connection to port 0.0.0.5 of the
+data source, setting up the final leg for the data.
+
+<p>
+</LI>
+<LI>Connect results gatherer to data source, the data control path
+
+<p>
+ In order to control the sourcing of data the results gatherer
+connects to port 0.0.0.3 of the data source again. This time it uses
+the connection to send `source packet' commands at regular
+intervals.
+
+<p>
+</LI>
+</OL>
+
+
+<p>
+ Once the network connections have been made the results gatherer
+repeats sending the `source packet' commands to initiate cells to the
+data source. At most 64 cells per block may be generated per command,
+and as there are 52 data bytes per cell and 50 data blocks generated
+per second, data rates of up to 1330 kilobits per second may be
+produced, although the transit times of single cell blocks are the main
+area of interest.
+
+<p>
+ The design of the software for the data source and echo server is
+such that multiple hops can be used in the echoing of cells, i.e. the
+data source sends cells to <I> A</I>, which forwards them to <I> B</I>,
+which passes them to <I> C</I>, before finally being sent back to the
+data source and from there to the results gathering system. This
+feature provides no extra useful information unless the network is
+highly loaded at some points. Then the data path could be made to go
+through a highly loaded point more than once to see what effect the
+high load has on the data. However, as can be seen from the results,
+the loads in the system were never high enough to generate any real
+effect on the data, so results using multiple hops are not given here.
+
+<p>
+<A NAME="5.1.1.3"></A><h5>
+5.1.1.3 Artifacts of the system
+</h5>
+<p>
+
+
+<p>
+The software running on the Pandora network cards and the ATM switches
+connecting them interact in a way that may not be
+immediately obvious. This section describes the rates at which cells
+are sourced, carried, switched and echoed, and the artifacts that these
+different rates might produce.
+
+<p>
+<UL>
+
+
+<p>
+<LI>Cell sourcing rate
+
+<p>
+ The cells of a block are generated by the data source and forced into
+the network interface faster than they can be transmitted by the
+network, because the insertion of a cell is performed by inserting a
+single word into a FIFO with the data having already been loaded into the
+seperate data FIFO. Inserting the single word takes about 200 nanoseconds, and
+data transmission occurs at the rate of one cell per 4 microseconds.
+
+<p>
+</LI>
+<LI>Cell transport rate
+
+<p>
+The cell data is serialised and transmitted along coaxial cable at a
+data rate of 100 Mbps. For a 53-byte cell (with two bytes of overhead)
+this corresponds to 4.4 microseconds taken between ATM ports. With
+additional FIFO fall-through delays, the cell transport time for the
+first cell in a block is close to 6 microseconds (see oscilloscope
+results below, section <A HREF="experimentation_for_global_clocks.html#5.1.2.3">5.1.2.3</A>).
+
+<p>
+</LI>
+<LI>Cell switching rate
+
+<p>
+The switching speed for cells is described in more detail below
+(section <A HREF="experimentation_for_global_clocks.html#5.1.2.7">5.1.2.7</A>). It
+should be noted for now that the switch uses FIFO-to-FIFO copies to
+transfer cells between ports, at about 4 microseconds per cell.
+
+<p>
+</LI>
+<LI>Cell echoing rate
+
+<p>
+The echoing node must receive all the data of a cell into
+memory before retransmitting the cell. Reading and
+writing the data for a cell in a Pandora ATM network card takes almost
+4 microseconds each, making the absolute minimum echoing time 8
+microseconds (slower than the switch and cell transport).
+
+<p>
+The echo server and data source must handle cells arriving on different
+VCI's in different ways --- the cells may be PDU cells, cells on a
+command channel, or data cells. So some time is taken by the software
+deciding what to do with every cell based on its VCI.
+
+<p>
+Also, there are other interrupt sources which must be managed by the
+software on a Pandora ATM network card, relating to the maintenance of
+the network hardware. Even when the received cell interrupts and the
+echo VCI are given the highest priority in the software, the minimum
+total delay in echoing packets 13 microseconds (again, see section
+<A HREF="experimentation_for_global_clocks.html#5.1.2.3">5.1.2.3</A> below).
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+ The net effect of the above rates is that the cell echoing is the
+bottleneck. This implies that data is shipped from data source to echo
+server at the highest rate the intervening network can manage (the
+cell transport rate, one cell per 4.4 microseconds). The cells will then
+tend to be buffered at the echo server waiting to be handled, before
+being sent back at the rate of one per 13 microseconds. So the
+expected interarrival time of cells at the data source is 13
+microseconds, unless the cell switches in between fail to respond as
+predicted.
+
+<p>
+ Now, as the cells are transmitted at full network speed, and echoed
+cells travel along the reverse route through the same switches as
+transmitted cells, there should be an interaction between the high
+cell rate and the returning cells. This effect should only appear on
+suitably large blocks of cells.
+
+<p>
+
+
+<p>
+<A NAME="5.1.2"></A><h4>
+5.1.2 Results
+</h4>
+<p>
+
+
+<p>
+ The results were generated on the ORL ATM switch network distributed
+throughout the Olivetti Research Laboratory building in
+Cambridge. This section describes all the results collected when
+timing the ATM switch network echoing packets. The routes and loadings
+of the network are described first, then some oscilloscope
+measurements taken during the testing, then the results gathered using
+the software described above are presented.
+
+<p>
+<A NAME="5.1.2.1"></A><h5>
+5.1.2.1 Network routes used
+</h5>
+<p>
+
+
+<p>
+
+
+
+
+
+
+<p>
+<A HREF="ps/atm_map.ps"> Figure 5.1 : ATM Switch Network Topology for Experiments</A><A NAME="Fig5.1"></A>
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/route1.ps"> Figure 5.2 : Route A</A><A NAME="Fig5.2"></A>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/route2.ps"> Figure 5.3 : Route B</A><A NAME="Fig5.3"></A>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/route3.ps"> Figure 5.4 : Route C</A><A NAME="Fig5.4"></A>
+
+
+
+<p>
+ Three different network routes were used to collect results. The
+first, route A (figure <A HREF="experimentation_for_global_clocks.html#Fig5.2">5.2</A>), has the smallest possible network
+between the data source and echo server, just a single switch. This
+route gives a lower bound on the time for echoing any blocks in any
+system, and also allows simple analysis of a switch. The second route,
+route B (figure <A HREF="experimentation_for_global_clocks.html#Fig5.3">5.3</A>), is of medium length, simulating the longest
+route in the ORL ATM network which does not require the data to pass
+through the central hub. Only 4-port switches are involved, and so
+interactions between these may be examined. The third route, route C
+(figure <A HREF="experimentation_for_global_clocks.html#Fig5.4">5.4</A>), is the longest route available on the ORL network,
+going from one end of the building, through the central hub, then
+through the next longest spur. This route provides some idea of the
+behaviour of the echoing of data over long routes, and provides the
+largest scope for interference from other data streams passing through
+the switches used in the route.
+
+<p>
+<A NAME="5.1.2.2"></A><h5>
+5.1.2.2 Network loadings used
+</h5>
+<p>
+
+
+<p>
+ The results were gathered outside office hours to allow the
+examination of an almost totally quiet network, as well as under a
+relatively high loading (certainly much higher than is currently used
+in office hours). Unfortunately this loading is very much less than
+the network is capable of, as the high data-rate producers and
+consumers for the network are not yet available.
+
+<p>
+ With a quiet network the only traffic is very low bandwidth network
+management cells. The relatively high loadings of the network were
+designed to simulate, as well as possible, real-time multimedia
+traffic. With the state of the ORL multimedia systems at the time the
+results were gathered this means video streams consisting of 16 bit
+colour video from cameras at a frame size of 88 by 64 and rate of 25
+frames per second to DECstation's equipped with YES boards, and stereo
+audio streams using two 16 bit samples at 32 kHz between networked
+audio boxes. These correspond to data rates of 2.25Mbps for the video
+(bursts of data every 40 milliseconds) and 1 Mbps for the audio
+(continuous data). Video streams were set up from <I> pheasant</I> and
+<I> dabchick</I> to <I> truffle</I>, and from <I> pheasant</I> and <I>
+dabchick</I> to <I> chanterelle</I>. Audio streams were set up
+bidirectionally between <I> grouse</I> and <I> mallard</I>, and <I>
+grouse</I> and <I> rail</I>. These streams were chosen mainly because, of
+the possible routes, the paths of the streams overlapped to the
+largest extent available with the chosen routes without the
+experimental audio and video stream software crashing.
+
+<p>
+<A NAME="5.1.2.3"></A><h5>
+5.1.2.3 Oscilloscope measurements
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+
+<p>
+<A HREF="ps/atmtimepth.ps"> Figure 5.5 : Time diagram for a single ATM cell</A><A NAME="Fig5.5"></A>
+
+
+<p>
+
+
+<p>
+ In addition to running the echo timing system in software, some
+measurements were taken using a digitizing storage oscilloscope to
+investigate the performance of the Pandora ATM network cards and the 4 port
+switches.
+
+<p>
+ The oscilloscope was set to trigger on the data source writing the
+first word of data into the transmit data FIFO. The data source was
+running single cell blocks through a single 4 port switch. The timings
+read from the oscilloscope are not entirely reliable as they were read
+from different single occurences of cells. However, the timings are
+fairly repeatable.
+
+<p>
+ Once the data has been written into the data FIFO the tag word is
+written. This is the first point on the time diagram in figure
+<A HREF="experimentation_for_global_clocks.html#Fig5.5">5.5</A>. The tag FIFO has a fall-through time of
+approximately 1.6 microseconds <B><A HREF="bibliography.html#Bib49">[49]</A></B>, and after which the
+cell is transmitted onto the ATM cable. The cell is received into the
+data FIFOs on the switch, and when the transfer is complete the
+receive tag FIFO on the switch is written by the ATM interface. After
+another fall-through time the cell becomes available to the switch,
+after which the switch detects the cell, reads the tag FIFO, transfers
+the cell data to another port, then writes the transmit tag FIFO for
+the new port.
+
+<p>
+ As before, the tag has to fall through the FIFO, after which the cell
+travels to the echo server's FIFO, causing its receive tag FIFO to be
+written when all the data has been transferred. The echo server enters
+its interrupt routine, reads the data from the data FIFO and reads the
+tag FIFO. After a decision process the cell is written to its transmit
+FIFO, followed by the tag, and the cell has restarted its journey in
+the reverse direction.
+
+<p>
+ As can be seen from figure <A HREF="experimentation_for_global_clocks.html#Fig5.5">5.5</A> this cycle takes
+approximately 33 microseonds. Important features are the switching
+time (approximately 3.6 microseconds), cell transit time between any
+two ATM interfaces (4.2 microseconds, or 7.6 microseconds if the
+FIFOs are both empty), and the echo server echo time
+(14.2 microseconds).
+
+<p>
+<A NAME="5.1.2.4"></A><h5>
+5.1.2.4 Results for echoing single cell blocks
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/atm_res/sw4/all.ps"> Figure 5.6 : Echo times for a single cell, route A</A><A NAME="Fig5.6"></A>
+
+
+
+<p>
+ The simplest test system usable with the echo server consists of the
+data source, echo server and 4 port switch, as shown in figure
+<A HREF="experimentation_for_global_clocks.html#Fig5.2">5.2</A>. The results of timing the echoing of blocks containing a
+single cell are shown in figure <A HREF="experimentation_for_global_clocks.html#Fig5.6">5.6</A>. The first graph contains the
+full results for the test system without any load. It exhibits a
+single spike distributed around 67 microseconds. The slight variation
+in the time between 66 and 68 microseconds is due both to the
+variation in the timing of the data source reading its local
+microsecond clock, and the operation of the 4 port switch, which uses
+a polling loop of approximately one microsecond duration and hence
+introduces up to one microsecond of delay in the path of a cell.  An
+examination of an enlargement of a portion of the graph shows a small
+distribution of cells up to 75 microseconds, a spike at 92
+microseconds, and a few cells distributed up to around 180
+microseconds.  The small distribution between 69 and 75 microseconds
+may be explained by the switch checking for internally produced cells,
+a test which occurs every 1000 idle polls. Other infrequent events
+also occur in the switch, which maintains a simple operating
+system on top of its switching duties, and so occasionally a cell will
+arrive during the handling of a clock interrupt or some other
+processing. The switch only switches cells while it is idling ---
+every other process has higher priority. The small spike at 92
+microseconds corresponds to 25 microseconds after the main spike. The
+reason for this is unknown.
+
+<p>
+ The other two graphs in figure <A HREF="experimentation_for_global_clocks.html#Fig5.6">5.6</A> show the same routes and
+block size, except the results were gathered while the test system's
+switch was loaded. The same peak appears at 67 microseconds, but there
+is a noticeable spread of echo times at 69 to 71 microseconds (5.2%
+of cells), and again between 72 and 75 microseconds (1.9% of
+cells). These are caused by the echo cells being forced to wait for
+the switch to handle one of the video or audio cells prior to the echo
+cell.
+
+<p>
+
+
+
+
+
+<A HREF="ps/atm_res/sw44444/all.ps"> Figure 5.7 : Echo times for a single cell, route B</A><A NAME="Fig5.7"></A>
+
+
+
+<p>
+Figure <A HREF="experimentation_for_global_clocks.html#Fig5.7">5.7</A> shows the results of the timings for loaded
+and unloaded network using route B (figure <A HREF="experimentation_for_global_clocks.html#Fig5.3">5.3</A>). The main
+spike for the unloaded network occurs at 160 microseconds, with a
+spread from 159 to 163 microseconds. A step similar to that from route
+A between 69 and 75 microseconds can be seen in the enlarged graph
+between 164 and 169 microseconds, followed by a tailing off. Note the
+small increase around 185 microseconds, 25 microseconds after the main
+spike. This corresponds to the 92 microsecond spike on the smaller
+route. The results for the loaded network, shown in the other two
+graphs in the figure, shows a much smoother tailing off in times, due
+to the extra cells the switches must cope with.
+
+<p>
+It is interesting to note that the time diagram (figure
+<A HREF="experimentation_for_global_clocks.html#Fig5.5">5.5</A>) shows that a switch will introduce an expected
+delay of 1.6+4.4+1.6+0.6+3.0 = 11.2 microseconds in each direction and
+that route A has one switch whereas route B has five switches (four
+more switches). Therefore the difference in the peaks between route A
+and route B should be eight times 11.2 microseconds, as each switch is
+traversed twice, and therefore route B's peak should be from 89.6
+microseconds after route A's peak, i.e. 159 to 161 microseconds.
+
+<p>
+
+
+
+
+
+<A HREF="ps/atm_res/sw4444844/all.ps"> Figure 5.8 : Echo times for a single cell, route C</A><A NAME="Fig5.8"></A>
+
+
+
+<p>
+Figure <A HREF="experimentation_for_global_clocks.html#Fig5.8">5.8</A> shows the echo timing results for the
+longest path available, route C (figure <A HREF="experimentation_for_global_clocks.html#Fig5.4">5.4</A>). The unloaded
+system produces a distribution around a spike at 225 microseconds,
+spread from 223 to 228 microseconds, with a less well-defined step
+than previous unloaded systems from 229 to 235 microseconds. Also,
+larger proportions of cells are taking longer. Another point of note
+is the distribution of cell echo times around 250 microseconds: again
+this is 25 microseconds after the main distribution, and although it
+is starting to become hidden by the smoothing effect, definitely still
+there. The graphs for the loaded system again show a smoother tailing
+off, and are otherwise unremarkable.
+
+<p>
+As between route A and route B, the comparison between route A's and
+route C's peaks is interesting. Route C has seven more switches than
+route A in its path, and therefore can be expected to take fourteen
+times 11.2 microseconds longer than route A, i.e. its peak should be
+at 156.8 + 69 to 71 microseconds, or 226 to 228. The peak is actually
+a little before, which can be attributed to the different architecture
+of the central hub switch, or, just as reasonably, inaccuracies in the
+timings of figure <A HREF="experimentation_for_global_clocks.html#Fig5.5">5.5</A>.
+
+<p>
+<A NAME="5.1.2.5"></A><h5>
+5.1.2.5 64-cell blocks
+</h5>
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/atm_res/sw4/all64.ps"> Figure 5.9 : Echo times for first cell of a 64-cell block, route A</A><A NAME="Fig5.9"></A>
+
+
+
+<p>
+Before the echo results were available it was assumed that the single
+cell blocks would have the most consistent transit times. However,
+looking at the graphs of the results of using the short route A as the
+echo path (figure <A HREF="experimentation_for_global_clocks.html#Fig5.9">5.9</A>), which give the distribution of echo
+times for the first cell in a block of 64 cells, the distribution is a
+lot sharper than for the single cell blocks case shown above, with
+over 90% of the echoed cells taking 483 microseconds in both unloaded
+and loaded systems.
+
+<p>
+
+
+
+
+
+<A HREF="ps/atm_res/sw44444/all64.ps"> Figure 5.10 : Echo times for first cell of a 64-cell block, route B</A><A NAME="Fig5.10"></A>
+
+
+
+<p>
+The distributions of echo times for longer routes (figures <A HREF="experimentation_for_global_clocks.html#Fig5.10">5.10</A> and
+<A HREF="experimentation_for_global_clocks.html#Fig5.11">5.11</A>) are closer to those expected, with the times are
+distributed a lot less cleanly. Looking at the first graph in figure
+<A HREF="experimentation_for_global_clocks.html#Fig5.10">5.10</A> there is a distribution centred on 582
+microseconds, but instead of the smooth results with single cell
+blocks the distribution is a group of spikes, each about 4.5
+microseconds apart, with the last one occurring at about 610
+microseconds. These may correspond to the echoed cells waiting at
+switches along the return path for other cells in its block, at each
+switch this waiting time being the switching time of the other cell:
+in some sense, this is a beating effect between the forward and return
+paths. With the echo cells travelling back through 5 switches on route
+B it might be expected that there could only be at most 5 delays of
+the switching times, whereas the results in the graph show at least 9
+delays. This can be explained by the unfair nature of the switch
+behaviour, as described in section <A HREF="experimentation_for_global_clocks.html#5.1.2.7">5.1.2.7</A> below.
+
+<p>
+The other two graphs in figure <A HREF="experimentation_for_global_clocks.html#Fig5.10">5.10</A>, with the results
+for the loaded system using route B, the patterning is still obvious,
+although it starts to get smoothed out due to the other traffic
+passing through the switches along the path.
+
+<p>
+
+
+
+
+
+<A HREF="ps/atm_res/sw4444844/all64.ps"> Figure 5.11 : Echo times for first cell of a 64-cell block, route C</A><A NAME="Fig5.11"></A>
+
+
+
+<p>
+Now a look at the graphs in figure <A HREF="experimentation_for_global_clocks.html#Fig5.11">5.11</A> is
+informative. The unloaded graphs appear to show the 4.5 microsecond
+spike interval occurring throughout the magnified graph, that is 15
+spikes, although the number of cells taking 706 microseconds is
+probably too small to be significant. With much longer runs the
+structure may become clearer. The overall distribution is also
+becoming wider.
+
+<p>
+<A NAME="5.1.2.6"></A><h5>
+5.1.2.6 Analysis of results
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+The sharp distribution for the 64-cell blocks over route A perhaps leads to the
+conclusion that a large block may be suitable for the distribution of
+time messages, as the transit time of the messages over such a route
+could be calculated very accurately. The single cell blocks, however,
+have only a slightly wider distribution of times for the same route, both loaded and
+unloaded. The clock message filter in the logical clock model can
+remove any messages in either case which have transit times outside
+the 90th percentile of the transit time distribution, which will limit
+the inaccuracy to a microsecond in both cases.
+
+<p>
+Over the longer routes it is clear from inspection of the related
+graphs that the single cell blocks have a much better distribution of
+echo times for accurate calculation of a transit time. More than that,
+the distributions suggest an algorithm for the clock message filter in
+the logical clock model, for filtering out clock messages with
+inaccurate transit times. The single cell blocks have a minimum
+transit time, which most accurately defines the transit time in one of
+the two directions it has travelled. Should a cell take longer than
+the minimum transit time it has either been delayed on one or both
+legs of its echo journey, although which leg cannot be immediately
+told. Even on the longest route under load, 90% of the cells take
+between 221 and 234 microseconds, and 50% between 221 and 226
+microseconds. So, from the results obtained here, if a suitable
+cut-off point is chosen then the inaccuracy in the transit time
+calculation can be kept very small.
+
+<p>
+There are two features of the graphs so far unexplained: the 25
+microsecond peak for single cell blocks after the main peak in the
+distribution, and the extremely sharp distribution for the first cell
+of 64-cell blocks over the short route. The first of these currently
+has no known explanation. The second is less interesting, as it is
+probably just an artifact of the implementation: perhaps the actual
+time is 483.6 +/- 0.6 microseconds, with the error distributed
+normally, whereas for single cell blocks the time is 70.2 +/- 0.6
+microseconds, therefore providing actual values of 69 and 70
+microseconds.
+
+<p>
+<A NAME="5.1.2.7"></A><h5>
+5.1.2.7 Operation of the switches
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+It should be noted that the switch operation is not fair. The ports are slightly
+preferentially treated under medium loads, although fairness is
+reinstated when the switch is under full load.
+
+<p>
+The switch runs a polling loop for switching cells. At the start of
+the polling loop, the ports which require servicing are recorded, and
+then they are serviced in a fixed order. When the recorded ports have
+all been serviced the polling loop restarts, recording a new set of
+ports which require servicing. The unfairness manifests itself in the
+following way.
+
+<p>
+Say that an ATM cell arrives on port A of the switch. The polling loop then
+records port A as the `ports' to service. While it is servicing the cell
+on port A a cell arrives on port B. After this another cell arrives on port
+A. When the processor finishes servicing the first cell it
+reinterrogates the ports which require servicing. These are both
+ports A and B, and they will be handled in that order. So, the second
+cell which arrived on port A, later than the cell which arrived on
+port B, is forwarded first. If the ports are reversed, the cell
+arriving at the new port A would be serviced first. Hence port A is
+preferentially treated.
+
+<p>
+Under full load (FIFOs constantly not empty) the switch will service
+ports in a true round-robin fashion. It is only under medium loads,
+where its FIFOs are operating almost empty, that this behaviour appears.
+
+<p>
+The first cell in a 64-cell block will take an indeterminate time, up
+to 1 microsecond, before the polling loop of the first switch will
+detect its presence in its receive FIFO. Thereafter the behaviour of
+that switch is deterministic (except for clock interrupts), as the
+receive FIFO is full every second time round the polling loop. With
+the short route, the first cell arrives immediately at the echo
+server, which takes a fixed time to insert the cell into the network,
+and so into the receive FIFO of the return port of the switch. As the
+switch behaviour is deterministic in this case, it will take a fixed
+time to react and forward the cell to the data source, hence the very
+tight distribution of times for the first cell of a 64-cell block.
+
+<p>
+As described above, the number of smaller spikes in the distribution
+for the echo time of the first cell from a 64-cell block over many
+switches may be accounted for by the interference between cells
+travelling along the forward and return paths. The maximum expected
+spikes could be the number of switches which the first cell encouters
+along the return path. However, the unfair nature of the switch probably
+has an effect, sometimes introducing two wait times for a cell at a
+single switch. There should never be three wait times, so the maximum
+number of spikes should be at most two times the number of switches
+the cell passes through.
+
+<p>
+<A NAME="5.2"></A><h3>
+5.2 Cambridge Fast Ring network transit times
+</h3>
+<p>
+
+
+<p>
+
+
+<p>
+ This section describes the work performed to analyse the echoing of
+cells and blocks between two Pandora network cards using the CFR, with
+the aim of evaluating the accuracy to which the transit times of those
+cells and blocks can be calculated. Performance problems related to
+the capabilities of the network cards used in this scenario are very
+similar to those that would be present in a distributed clock system
+for Pandora. As for the ATM switch network evaluation, blocks of cells
+were echoed from and to a data source by an echo server, with
+the cells being timestamped with local clocks at various points along
+their travel.
+
+<p>
+<A NAME="5.2.1"></A><h4>
+5.2.1 The echo timing system
+</h4>
+<p>
+
+
+<p>
+It should be noted that it was envisaged that, if more than one CFR
+were to be used in the Pandora system, then each of the rings would
+have its own time server. The service provided by the time server
+would then only have to operate on a local ring, and so the echo
+timing system only evaluates a single CFR.
+
+<p>
+The echo timing system for the CFR is similar to that used for the ATM
+switch network at its upper levels, but the lower levels are much
+different due to the nature of access to the CFR. The cell
+transmission mechanism had to be changed and extra complications due
+to the management of the ring had to be added. Another problem
+related to the CFR is the lack of any internetwork facilities for
+connection to Unix hosts for collecting the results in a suitable
+way. As a solution to this problem, a Pandora ATM network card is used to
+interact with a Pandora CFR network card running as the data source. The
+echo server is another Pandora CFR card running on its own.
+
+<p>
+
+
+<p>
+<A NAME="5.2.1.1"></A><h5>
+5.2.1.1 Data source and echo server software
+</h5>
+<p>
+
+
+<p>
+ The data source and echo server CFR card's run the same CFR
+software. This is structurally similar to the ATM version of the echo
+timing system, and uses the MSNL protocol in the same way to allow the
+data sourcing and cell forwarding virtual circuits to be made.
+
+<p>
+<UL>
+
+
+<p>
+<LI>Port 0.0.0.2
+
+<p>
+ Requesting a connection to port 0.0.0.2 sets up the virtual circuit
+for incoming data which will be forwarded onto the CFR. Normally a
+connection to this port is made from port 0.0.0.4 of another network
+card (data source or echo server).
+
+<p>
+</LI>
+<LI>Port 0.0.0.3
+
+<p>
+ Port 0.0.0.3 is the port used for extra connection management inside
+the echo server (unlike the ATM software, the data source on the CFR
+uses its ATM connectivity instead).  When a cell is received on this
+connection by the echo server, the echo server broadcasts the cell on
+the CFR after having inserted its own MSNL address as the source of
+the cell. This allows the ATM node connected to port 0.0.0.3 of the echo
+server to force the echo server to make a connection on its port
+0.0.0.4 to another network card on the CFR, normally the data source.
+
+<p>
+</LI>
+<LI>Port 0.0.0.4
+
+<p>
+ Port 0.0.0.4 is controlled by cells sent to an MSNL connection made
+to port 0.0.0.3. The connections made on this port form the outgoing
+half of the echoed data path. When one of these connections is formed
+upon reception of an MSNL connection reply PDU, the VCI from the reply is
+stored, and is inserted into all cells retransmitted as echos
+or generated by the data source.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+The lower levels of the software are based on an interrupt handler and
+a circular buffer of packets which have to be handled. Packets are
+added to the circular buffer either by being received from the CFR, or
+in the case of the data source, from the ATM network card. The
+interrupt handler is a high priority process, which must handle four
+possible interrupt sources from the CFR:
+
+<p>
+<UL>
+
+
+<p>
+<LI>Ring broken
+
+<p>
+The CFR CMOS chip requires servicing when the slot structure of the
+CFR breaks. This may be due to stations being added to or removed from
+the network, or because the monitor station is unhappy with the
+framing. The network handler must forget the packet it had in transit on
+the ring and acknowledge the ring broken state with the CFR CMOS chip
+before any more transmissions may take place.
+
+<p>
+</LI>
+<LI>Packet received
+
+<p>
+The packet received signal from the CFR CMOS chip indicates that the
+chip has received a packet into its internal FIFO. The network handler
+reads the packet from the CFR CMOS chip into its circular buffer, then
+awaits the next interrupt source. This process takes about 31
+microseconds, from the interrupt firing to the finish of the packet
+received handling.
+
+<p>
+If a packet is not in transit on the CFR then the first packet in the
+circular buffer will then be serviced.
+
+<p>
+</LI>
+<LI>Packet transmitted
+
+<p>
+The packet transmitted signal occurs when the CFR CMOS chip receives
+back the packet it inserted onto the CFR for transmission. This informs
+the network handler that it can transmit another packet by inserting the
+data into the CFR CMOS chip, so it forces the first packet in the
+circular buffer to be handled.
+
+<p>
+</LI>
+<LI>Packet TOGged
+
+<p>
+The packet togged signal occurs when the CFR CMOS chip tries to
+transmit a packet of times, failing each time for one of many possible
+reasons. For the echo server and data source these are very rare
+events, and are ignored, just causing the first packet in the circular
+buffer to be handled.
+
+<p>
+</LI>
+</UL>
+
+
+<p>
+The packets are timestamped at various stages along their path on the
+CFR. The first 16 bits of the cell contain a count of the number of
+times the packet has been timestamped. The cell is first timestamped
+at its first transmission by the data source. Three clock values are
+inserted at this point, the time of the last successful CFR packet
+transmission, the time of the interrupt which prompted the packet
+transmission, and the time the packet is inserted into the CFR
+transmission FIFO. When the packet arrives at the echo server it is
+timestamped the time the interrupt was handled. Then, when the packet
+is transmitted back to the data source the three clock values are then
+inserted by the echo server. Finally, on arrival at the data source
+the packet is given its received time timestamp.
+
+<p>
+<A NAME="5.2.1.2"></A><h5>
+5.2.1.2 Results gathering system
+</h5>
+<p>
+
+
+<p>
+As in the ATM switch network echo timing, the results gathering system
+is a DecStation 5000/240 fitted with a YES board (a TurboChannel ATM
+card), running OSF/1, with the specific software written in C. It uses
+MSNL to form a control connection with the data source's ATM network
+card. Using this connection it controls the data source and echo
+server to create the data path, and command the data source to
+generate data. The order of events is:
+
+<p>
+<OL>
+
+
+<p>
+<LI>Connect results gatherer to data source, control path
+
+<p>
+ The results gathering software running on the DECstation first
+connects to the ATM port of the data source. This connection is also the return
+path for the echoed data from the CFR onto the ATM network.
+
+<p>
+</LI>
+<LI>Connect data source to echo server, outward data path
+
+<p>
+ The data source is told by the results gathering system, using the
+ATM connection, to make a connection on its port 0.0.0.4 to the echo
+server's port 0.0.0.2 over the CFR. This is the outgoing data connection.
+
+<p>
+</LI>
+<LI>Connect echo server to data source, return data path
+
+<p>
+ The data source is then told by the results gathering system to make
+a connection to port 0.0.0.3 of the echo server. Using this connection
+it forces the echo server to connect its port 0.0.0.4 to the data
+source's port 0.0.0.2 (this is the return path for the echoed data)
+following which the control connection to the echo server is
+terminated.
+
+<p>
+</LI>
+</OL>
+
+
+<p>
+ Once the above has been performed, the results gathering software
+requests the data source to initiate a data block. This is transmitted
+on its outward data path connection. The data is echoed by the
+echo server, packet by packet, and returns to the data source along
+the return data path. The data source passes the packets from its CFR
+network card to its ATM network card, from where it reaches the
+results gathering system.
+
+<p>
+ It can be seen from the outline above that the software allows for
+more than two hops in the data path from the outgoing side of the data
+source to its incoming side. Instead of making the echo server <I>
+echo A</I> connect its port 0.0.0.4 to the data source's port 0.0.0.2 it
+may connect to a second echo server's port 0.0.0.2. This second echo
+server (<I> echo B</I>) can then be forced with its port 0.0.0.3 to
+connect its port 0.0.0.4 to the data source's port 0.0.0.2. Then the
+data path is data source, echo A, echo B, data source.
+
+<p>
+ One problem negotiated by the results gathering system is the
+different cell sizes used by the ATM network (48 data bytes) and the
+CFR (32 data bytes). The packets on the CFR use MDL for reassembly
+into blocks. When forwarded onto the ATM network by the data source
+the 32 bytes of packet data are placed in the first 48 bytes of the
+ATM cell payload and the reassembly information is changed to
+SAR1a. The blocks of data received by the results gathering system can
+then be split up into 48 byte cells, the first 32 bytes of each of
+which actually travelled on the CFR. The timestamps stored by the data
+source and echo server can therefore be extracted from the first 32
+bytes out of every 48 bytes of the blocks received by the results
+system.
+
+<p>
+<A NAME="5.2.2"></A><h4>
+5.2.2 Results
+</h4>
+<p>
+
+
+<p>
+The loading of the CFR has little effect on the actual performance of
+two stations which are not themselves loaded, unless the network
+load is excessive. The particular CFR on which the
+Pandora systems are connected cannot become very heavily loaded as the
+Pandora systems are limited in network bandwidth to about 3 Mbps
+aggregate bandwidth (transmit and receive), so requiring 32 stations
+to fill a 50 Mbps CFR, which is more than exist. So all the results
+presented were performed on an unloaded CFR.
+
+<p>
+<A NAME="5.2.2.1"></A><h5>
+5.2.2.1 Packet timestamps
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+When a packet arrives as part of a block at the results gathering
+system it contains eight important time values:
+
+<p>
+<OL>
+
+
+<p>
+<LI>Time last successful transmission was notified by CFR to data source
+</LI>
+<LI>Time of interrupt prompting packet transmission by data source
+</LI>
+<LI>Time of insertion of packet into CFR transmission FIFO by data
+source
+</LI>
+<LI>Time of interrupt for reception of the packet by echo server
+</LI>
+<LI>Time last successful transmission was notified by CFR to echo server
+</LI>
+<LI>Time of interrupt prompting packet transmission by echo server
+</LI>
+<LI>Time of insertion of packet into CFR transmission FIFO by echo server
+</LI>
+<LI>Time of interrupt for reception of the packet by data source
+
+<p>
+</LI>
+</OL>
+
+
+<p>
+These results are presented here in three forms. Firstly, the operation
+of both the data source and echo server is displayed graphically,
+by sorting the times of their events (time values 1, 2, 3 and 8 for
+the data source, 4, 5, 6 and 7 for the echo server) for a block of
+cells and plotting the events against the time of the events. Secondly the
+difference between time value 1 and the previous packet's time value 3
+indicates the time the data source thought the previous packet was on
+the network, and similarly the difference between time value 5 of a
+packet and the previous packet's time value 7 is the time the echo
+server thought the previous packet was on the network. Thirdly the
+difference between time value 1 of a packet and time value 4 of the
+previous packet gives the clock difference between the data source and
+the echo server plus the network transit time from echo server to data
+source, and similarly for time value 5 of a packet and the previous
+packet's time value 8.
+
+<p>
+<A NAME="5.2.2.2"></A><h5>
+5.2.2.2 Event timelines
+</h5>
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/cfr_res/timelines.ps"> Figure 5.12 : Timelines for data source and echo server</A><A NAME="Fig5.12"></A>
+
+
+
+<p>
+The timelines shown in figure <A HREF="experimentation_for_global_clocks.html#Fig5.12">5.12</A> give the ordering of
+events inside the data source and echo server respectively. This
+allows analysis of the software and a comparison of the two cards'
+clock values. The timelines describe the echoing of a single block
+consisting of 31 CFR packets.
+
+<p>
+The first event on the data source's timeline is an interrupt at clock
+value 27432, which forces the data source to check its circular buffer
+for packets to handle. It finds a packet to be transmitted, inserting
+the packet into the CFR transmit FIFO at 27449. The data source then
+goes idle, waiting for the interupt it receives at 27502. This
+interrupt is due to the CFR chip having marked the first cell as
+transmitted, as can be seen by the next event being ``CFR TXed''. This
+permits the data source to transmit the next packet in its circular
+buffer, which occurs at 27519. At clock value 27547 it received the
+first cell back from the echo server, and so it continues.
+
+<p>
+The first event on the echo server's timeline is an interrupt due to
+the CFR chip receiving a packet (the interrupt and ``CFR RXed'' events
+are marked as simultaneous), occurring at clock value 62238. This
+packet is transferred to the echo server's circular buffer, which can
+then be serviced and the packet returned by transmitting it, which
+happens at 62267. Meanwhile the data source has transmitted the second
+packet (27519-27449 = 70 microseconds after the first packet), which
+is received by the echo server at 62300 (62 microseconds after it
+received the first packet). The next event for the echo server is the
+acknowledgement from the CFR chip that its first packet has been
+transmitted, occurring at 62322. This permits the second packet to be
+transmitted, occurring at 62334. And so operation continues.
+
+<p>
+<A NAME="5.2.2.3"></A><h5>
+5.2.2.3 Packet transit times
+</h5>
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/cfr_res/tx.ps"> Figure 5.13 : Packet transmission times</A><A NAME="Fig5.13"></A>
+
+
+
+<p>
+As suggested above, the packet transmission times (i.e. time from
+insertion into CFR transmit FIFO to the successful transmission
+notification being received) can be calculated from the clock values
+in the echoed packets. The distribution of calculated times is given
+for both the data source and echo server separately in figure
+<A HREF="experimentation_for_global_clocks.html#Fig5.13">5.13</A>.
+
+<p>
+<A NAME="5.2.2.4"></A><h5>
+5.2.2.4 Clock differences
+</h5>
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/cfr_res/clockdiff.ps"> Figure 5.14 : Difference in clock values</A><A NAME="Fig5.14"></A>
+
+
+
+<p>
+The third form of presentation suggested above is shown in figure
+<A HREF="experimentation_for_global_clocks.html#Fig5.14">5.14</A>. This consists of two traces, the upper one generated
+from the difference between the fifth clock value of a packet and the
+eighth clock value of the previous packet, the lower one generated
+from the difference between the fourth clock value of a packet and the
+first clock value of the next packet.
+
+<p>
+Each trace consists of groups of points, one group corresponding to a
+block of 31 CFR packets. Each point in a group gives the result from
+the contents of a single cell. The horizontal axis of the graphs
+corresponds to the results gatherer's time since the first cell of the
+first block was transmitted.
+
+<p>
+<A NAME="5.2.3"></A><h4>
+5.2.3 Analysis of results
+</h4>
+<p>
+
+
+<p>
+This section describes the analysis of the results that were given
+above.  Firstly it covers the software and hardware features of the
+systems which are relevant to the results. Then it covers the
+calculation of the CFR ring rotation time and relative clock drifts,
+with a summary of the effects that these have on the accuracy of the
+calculation of packet transit times.
+
+<p>
+<A NAME="5.2.3.1"></A><h5>
+5.2.3.1 Features of the software and hardware
+</h5>
+<p>
+
+
+<p>
+An examination of the timeline for the data source shows that, between
+the first packet being received by the data source from the echo
+server and the next packet being transmitted no interrupt occurs ---
+that is, at the end of handling the reception of the packet the CFR
+will already have signalled the successful transmission of the
+previous packet. This implies that there is some inaccuracy in the
+measurements for the clock values of the successful transmissions.
+This is also the reason why, in the event timelines description above,
+the data source transferred cells to the CFR chip 70 microseconds
+apart yet they were received by the echo server 62 microseconds apart.
+
+<p>
+A feature of the software is the length of time it takes to copy
+packets into the CFR transmission FIFO after they have been
+timestamped. This makes the timestamp in the packet out of date by 6
+microseconds.
+
+<p>
+<A NAME="5.2.3.2"></A><h5>
+5.2.3.2 Packet transit times
+</h5>
+<p>
+
+
+<p>
+The most important feature of the packet transit time
+distributions shown in <A HREF="experimentation_for_global_clocks.html#Fig5.13">5.13</A> is their width, which
+corresponds to that expected from the network. The width is about 8
+microseconds, which corresponds well to that seen by <B><A HREF="bibliography.html#Bib21">[21]</A></B>,
+of 8.2 microseconds. This distribution width implies that the
+timestamping method used above can give an accuracy in calculating a
+packet transmission time of better than 5 microseconds.
+
+<p>
+<A NAME="5.2.3.3"></A><h5>
+5.2.3.3 Ring rotation time
+</h5>
+<p>
+
+
+<p>
+When a packet is placed by the CFR chip onto the network it travels
+for a complete revolution of the ring before the CFR chip frees the
+slot it was carried in and generates its successful packet
+transmission notification signal. As 
+the graphs in figure <A HREF="experimentation_for_global_clocks.html#Fig5.13">5.13</A> correspond to the distributions of
+the differences between the packet insertion times into the CFR and
+the corresponding success notification, they should give an idea
+of the time for a complete revolution of the ring.
+
+<p>
+However, after a packet is inserted into the CFR chips transmission
+FIFO the CFR chip must wait for an empty slot to arrive, into which it
+can insert the packet data. On a completely unloaded network (as shown
+in the graphs) this will take at most one slot time plus the gap time
+(the width of the distribution). The length of this delay cannot be
+predicted by the transmitter, and it accounts for the variation in
+packet transmission times shown in the graphs. The minimum value
+should correspond to the ring rotation time.
+
+<p>
+Another method for calculating the ring rotation time is to compare
+the two traces in figure <A HREF="experimentation_for_global_clocks.html#Fig5.14">5.14</A>. The lower trace is the
+difference between the clock value of the data source when it is
+notified of a successful transmission of a packet and the clock value
+of the echo server when it was notified that the packet had been
+received. The upper trace is the difference between the clock value of
+the data source when it was notified of a packet being received and the
+clock value of the echo server when it was notified the packet had been
+successfully transmitted. The first of these corresponds to the
+difference in clock values between the echo server and data source
+minus the time taken for the packet to return along the ring from the
+echo server to the data source. The second corresponds to the
+difference in clock values between the echo server and data source
+plus the time taken for the packet to travel along the ring from the
+data source to the echo server. The difference between the two values
+is the time taken for the packet to travel from the data source to the
+echo server plus the time taken for the packet to travel from the echo
+server to the data source, i.e. the length of the ring. So the
+difference is an estimate of the time taken for a packet to travel the
+length of the ring, which is the ring rotation time.
+
+<p>
+This second method gives ring rotation times of 45 microseconds. It
+may be regarded as more accurate than the graphs shown in figure
+<A HREF="experimentation_for_global_clocks.html#Fig5.13">5.13</A> as the time taken to transfer data into the
+transmission FIFO and the time taken by the CFR chip in waiting for an
+empty slot to transmit into are removed. However, there is an error in
+the value equal to twice the time taken by the software to respond to
+the successful transmission signal minus the time taken to respond to
+a packet received signal. As described above, the time taken to
+respond to the successful transmission signal is effected by the time
+taken to receive the previous cell. This interdependence also has an
+effect on the error.
+
+<p>
+These two calculations fit well with the size of the ring (six slots)
+and the timings seen in <B><A HREF="bibliography.html#Bib21">[21]</A></B>, which is a single slot ring,
+where the rotation time is seen to be 8.2 microseconds.
+
+<p>
+<A NAME="5.2.3.4"></A><h5>
+5.2.3.4 Relative clock drift
+</h5>
+<p>
+
+
+<p>
+The two traces in figure <A HREF="experimentation_for_global_clocks.html#Fig5.14">5.14</A> show that the difference
+between the clock values of the echo server and the data source does
+not remain constant, but drifts by about 60 microseconds in the 400
+milliseconds of the graph. This corresponds to a relative clock drift
+of 150 microseconds per second. Over the 2 milliseconds duration of a
+31-packet block this is negligible (0.3 microseconds), but it does
+indicate that readings taken over longer time scales need to be
+corrected.
+
+<p>
+<A NAME="5.2.3.5"></A><h5>
+5.2.3.5 Method and accuracy of calculating packet transit times
+</h5>
+<p>
+
+
+<p>
+
+
+<p>
+The research described in the above section was peformed to find out
+how message transit times could be accurately calculated for the
+distribution of a global clock. As is clear from the above results and
+analysis, there are barriers to producing transit times of an accuracy
+of the order of microseconds. For example, the ring rotation time is
+about 40 microseconds, and the inaccuracy of the measurement is half
+the rotation time (see section <A HREF="high_precision_clock_distribution.html#4.5.3.2">4.5.3.2</A>). However, the above analysis
+shows that this is at least calculable, and so a known accuracy can be
+given.
+
+<p>
+For accurate calculation of transit times, the above results suggest
+the recording of clock values on reception and successful transmission
+will give results accurate to better than 10 microseconds, plus the
+addition ring rotation time inaccuracy. So if messages consisted
+of two packets, with the first packet stamped with the received clock
+value and the second packet containing the successful transmission
+clock value of the first packet, then for messages travelling between two
+points their transit times should be calculable to the ring rotation
+time plus or minus 10 microseconds.
+
+<p>
+
+
+<p>
+<A NAME="5.3"></A><h3>
+5.3 Logical clock models
+</h3>
+<p>
+
+
+<p>
+
+
+<p>
+
+
+
+
+
+<A HREF="ps/clocks.ps"> Figure 5.15 : Errors in distributed clock values</A><A NAME="Fig5.15"></A>
+
+<I> (floating point does not use message distribution time
+estimates)</I>
+
+
+
+
+<p>
+Three logical clock models were described in section <A HREF="high_precision_clock_distribution.html#4.5.4">4.5.4</A>.
+The graphs in figure <A HREF="experimentation_for_global_clocks.html#Fig5.15">5.15</A> show some results from experiments
+with the logical clock models. This section describes the experiments carried
+out in improving and finalising the logical clock model used in the
+research, and gives descriptions of the behaviour described in the
+graphs.
+
+<p>
+<A NAME="5.3.1"></A><h4>
+5.3.1 Experimental system
+</h4>
+<p>
+
+
+<p>
+The experiments for examining the performance of logical clock models
+were started after the initial implementation of a logical clock, as
+its performance was not satisfactory. This algorithm was re-coded in C
+using an event-based system to accurately simulate the finished
+system, with a control language to aid experimentation. The
+experiments mirrored the poor performance, and so more research was
+carried out into logical clocks.
+
+<p>
+At this stage the Fuzzball logical clock was implemented in the
+experimental system, using floating point values throughout to
+investigate the precisions required for implementing the model in
+fixed point arithmetic in occam in the finished system. Suitable
+values for the frequency, phase and compliance weights were chosen to
+provide a sensible capture rate and accuracy. No clock filter was
+implemented, as in the experimental system, at this time, there were
+no message distribution time estimates.
+
+<p>
+Before implementing the Fuzzball logical clock on the finished system using
+fixed point arithmetic it too was added to the experimental system. At
+first a simple conversion from floating point to fixed point was
+performed, then it was enhanced to use an estimate of the message
+distribution time in its handling of clock messages. It maintained a
+running average of the message distribution times, and subtracted this
+value from the local clock value of the messages. This helped to
+remove the fixed offset in the clock once message distribution estimates were
+added to the system.
+
+<p>
+Finally the experimental fixed point arithmetic system was enhanced
+again, by adding a clock message filter, improved message distribution
+estimate handling, and initial frequency error calculation. The clock
+message filter maintains a minimum message distribution time, which is
+the minimum value of all the clock message distribution estimates, and
+a filter value. The filter value is increased if a message arrives
+with a message distribution estimate that is greater than the minimum
+value by more than about 120% of the difference between the filter
+value and the minium value. The filter value is decreased if a message
+arrives with a message distribution estimate that is greater than the
+minimum value by less than about 80% of the difference between the filter
+value and the minium value. The filter value is therefore maintained
+at slightly above the mode of the distribution of message times. Clock
+messages are ignored if their message distribution times are greater
+than the filter value. The inaccuracy in the message distribution
+estimate is calculated to be the difference between it and the minimum
+message distribution time. Finally, the initial frequency error is
+calculated using the first two messages received by the clock model,
+using the differences in the local clock values and the messages'
+clock values.
+
+<p>
+<A NAME="5.3.2"></A><h4>
+5.3.2 Experimental results
+</h4>
+<p>
+
+
+<p>
+
+
+<p>
+Some experimental results are shown in figure <A HREF="experimentation_for_global_clocks.html#Fig5.15">5.15</A>. These
+graphs dsisplay the differences between the clocks as calculated by
+the logical clock models described in the previous section and the
+actual global clock. The local clock was taken to have a fixed
+frequency error of -150 parts per million (compare CFR drifts
+obseved above). The clock messages were given distribution times taken
+from the real data collected using the ATM switch network for single
+cell blocks using route C (see figure <A HREF="experimentation_for_global_clocks.html#Fig5.8">5.8</A> and section
+<A HREF="experimentation_for_global_clocks.html#5.1.2.4">5.1.2.4</A>), and random errors in the distribution
+time estimates dependent on their distribution times.
+
+<p>
+The initial logical clock model implemented (``Initial model'')
+overshoots three times before settling at an error of roughly -10
+microseconds. The graph for this model is not smooth, with rapid
+changes in clock adjustment occurring at 20 seconds and 290 seconds
+into the experiment. This is because the effect of rogue values is not
+removed with a filter, and the balance between reducing frequency and
+phase error is not satisfactory.
+
+<p>
+The floating point Fuzzball logical clock model experiment (``Floating
+point NTP'') shows a smooth curve until just after 300 seconds, where
+the results become unsettled until an error of about -115
+microseconds is attained (this is roughly half the average message
+distribution time).
+
+<p>
+The fixed point Fuzzball logical clock model (``Integer NTP'') generates
+a slightly larger error initially before settling to vary from -1 to
++1 microseconds error, after a slight overshoot at 300 seconds. The
+larger initial error can be accounted for by the handling of message
+transmission times, which bias the whole graph in the positive error
+direction.
+
+<p>
+The last, enhanced fixed point Fuzzball logical clock model (``Improved
+NTP'') does not exhibit the large initial error distribution, instead
+it starts from the first second with an error of about +/-50
+microseconds. Within one minute it is within +/-10 microseconds, and
+within 200 seconds it has a single microsecond of error, the best that
+can be achieved. It is interesting to note that the clock message
+filter implemented in this model allows 86% of the messages to be
+used, all of which have distribution times within 230 microseconds,
+most within 226 microseconds. The latter can have distribution errors
+of at most 5 microseconds.
+
+<p>
+<p>
+<center><A HREF="clock_distribution_implementation.html">Chapter 6 : Clock distribution implementation</A>
+</body></html>
