@@ -44,7 +44,7 @@ echo "<table border=0 width=100% cellspacing=0 cellpadding=0 bgcolor=\"$body_bac
 echo "<tr height=$logo_height>";
 echo "<td width=$nav_width bgcolor=\"$logo_background\" valign=top align=left ><img src=\"${toplevel}images/embisi_small.gif\" width=80 height=64 border=0/></td>";
 echo "<td width=1 bgcolor=\"$logo_background\" valign=top align=center ></td>";
-echo "<td bgcolor=\"$logo_background\" valign=center align=center class=logo>Embisi Inc</td>";
+echo "<td bgcolor=\"$logo_background\" valign=center align=center class=logo height=\"64\">Embisi Inc</td>";
 echo "<td width=1 bgcolor=\"$logo_background\" valign=top align=center ></td>";
 echo "</tr>";
 
