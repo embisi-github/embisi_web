@@ -4,6 +4,7 @@
  */
 function insert_blank( $width, $height )
 {
+    global $toplevel;
     echo "<img src=\"${toplevel}images/transparent.gif\" width=$width height=$height/>";
 }
 
@@ -201,7 +202,14 @@ function site_map( $marker, $href, $text )
     if ($level>0)
     {
         $ptag = $site_map["tag"][$level-1].".".$site_map["count"][$level-1];;
-        $site_map["hrefs"][$tag] = $site_map["path"][$ptag].$href;
+        if (strstr($href,"http:"))
+        {
+            $site_map["hrefs"][$tag] = $href;
+        }
+        else
+        {
+            $site_map["hrefs"][$tag] = $site_map["path"][$ptag].$href;
+        }
     }
     else
     {
