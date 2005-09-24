@@ -15,12 +15,14 @@ page_sp();
 
 ?>
 
-Embisi started officially in March 2004. It is commercializing some of the technology that Gavin Stark
-developed after leaving Intel in March 2003.
+Embisi is a privately held company headquartered in New England, with design centers in both New Hampshire and England.
 
-<p>
+<br>
 
-Embisi is a privately held California company.
+It was founded in 2004 to commercialize some advanced technology being
+researched for high performance embedded controllers. Since that time
+it has reshaped, and is now developing embedded Internel control
+modules for particular vertical markets.
 
 <?php
 page_ep();

@@ -4,47 +4,6 @@
  */
 echo "<table width=100%>";
 
-/*a Insert a break
- */
-?>
-
-<table width=100% cellspacing=0>
-<tr class=nomargin height=10></tr>
-<tr class=nomargin height=1>
-<td class=nomargin width=10><?php insert_blank(1,1);?></td>
-<td class=nomargin bgcolor="black"><?php insert_blank(1,1);?></td>
-<td class=nomargin width=10><?php insert_blank(1,1);?></td>
-</tr>
-<tr class=nomargin height=10></tr>
-</table>
-<?php
-
-/*a Insert global navigation area
- */
-nav_link_start("");
-nav_link_add( "index.php", "Home" );
-nav_link_add( "company", "Company" );
-nav_link_add( "technology", "Technology" );
-nav_link_add( "company/people", "People" );
-nav_link_add( "background", "Background" );
-nav_link_end();
-
-/*a Insert a break
- */
-?>
-
-<table width=100% cellspacing=0>
-<tr class=nomargin height=10></tr>
-<tr class=nomargin height=1>
-<td class=nomargin width=10><?php insert_blank(1,1);?></td>
-<td class=nomargin bgcolor="black"><?php insert_blank(1,1);?></td>
-<td class=nomargin width=10><?php insert_blank(1,1);?></td>
-</tr>
-<tr class=nomargin height=10></tr>
-</table>
-
-<?php
-
 /*a Insert any local navigation if required
  */
 function add_sitemap_tag( $posn, $tag, $current_marker )

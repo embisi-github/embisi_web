@@ -31,9 +31,11 @@ include "${toplevel}web_assist/web_css.php";
   The toplevel structure is a table with five rows, each with 4 columns:
     The top is the logo/general navigation bar
     The second is a horizontal bar
-    The third is the links bar and contents of the page
+    The third is a generic navigation bar
     The fourth is a horizontal bar
-    The fifth is the copyright bar and final footer
+    The fifth is the links bar and contents of the page
+    The sixth is a horizontal bar
+    The seventh is the copyright bar and final footer
  */
 echo "<body bgcolor=\"$page_background\" leftmargin=0 topmargin=0 marginwidth=0 marginheight=0>";
 
@@ -44,8 +46,9 @@ echo "<table border=0 width=100% cellspacing=0 cellpadding=0 bgcolor=\"$body_bac
 echo "<tr height=$logo_height>";
 echo "<td width=$nav_width bgcolor=\"$logo_background\" valign=top align=left ><img src=\"${toplevel}images/embisi_small.gif\" width=80 height=64 border=0/></td>";
 echo "<td width=1 bgcolor=\"$logo_background\" valign=top align=center ></td>";
-echo "<td bgcolor=\"$logo_background\" valign=center align=center class=logo height=\"64\">Embisi Inc</td>";
+echo "<td bgcolor=\"$logo_background\" valign=center align=center class=logo height=\"64\" width=800>Embisi Inc</td>";
 echo "<td width=1 bgcolor=\"$logo_background\" valign=top align=center ></td>";
+//echo "<td bgcolor=\"$logo_background\" valign=top align=center >&nbsp;</td>";
 echo "</tr>";
 
 /*a Second row: horizontal bar
@@ -65,9 +68,58 @@ echo "<td class=nomargin height=1 bgcolor=\"$nav_background\">";
 echo "</td>";
 echo "<td colspan=3 bgcolor=black>";
 insert_blank(1,1);
-echo "</td></tr>\n";
+echo "</td>";
+echo "<td bgcolor=\"$logo_background\" valign=top align=center ></td>";
+echo "</tr>\n";
 
-/*a Third  row: links column, divider, main contents, divider
+/*a Third row: general navigation bar
+ */
+echo "<tr height=$gennav_height>";
+echo "<td colspan=4>";
+echo "<table class=nomargin cellspacing=0 width=100%>";
+ echo "<tr>";
+  echo "<td class=nomargin width=12 height=16 bgcolor=\"$nav_background\">";
+   insert_blank(1,1);
+  echo "</td>";
+  echo "<td class=nomargin width=1 height=16 bgcolor=black>";
+   insert_blank(1,1);
+  echo "</td>";
+  echo "<td class=nomargin height=16 bgcolor=$logo_background>";
+   echo "<table class=nomargin cellspacing=0 width=100%>";
+   echo "<tr>";
+
+include "${toplevel}web_assist/web_title_nav.php";
+
+   echo "</tr>";
+   echo "</table>";
+  echo "</td>";
+ echo "</tr>";
+echo "</table>";
+echo "</td>";
+echo "<td bgcolor=\"$logo_background\" valign=top align=center ></td>";
+echo "</tr>\n";
+
+/*a Fourth row: horizontal bar
+ */
+echo "\n<tr class=nomargin height=1>";
+echo "<td class=nomargin height=1 bgcolor=\"$nav_background\">";
+  echo "<table class=nomargin cellspacing=0 width=100%>";
+    echo "<tr class=nomargin>";
+      echo "<td width=12 class=nomargin>";
+      insert_blank(1,1);
+      echo "</td>";
+      echo "<td bgcolor=black class=nomargin>";
+      insert_blank(1,1);
+      echo "</td>";
+    echo "</tr>";
+  echo "</table>";
+echo "</td>";
+echo "<td colspan=3 bgcolor=black>";
+insert_blank(1,1);
+echo "<td bgcolor=\"$logo_background\" valign=top align=center ></td>";
+echo "</tr>\n";
+
+/*a Fifth  row: links column, divider, main contents, divider
  */
 ?>
 

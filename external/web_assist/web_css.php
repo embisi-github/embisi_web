@@ -102,6 +102,9 @@ PRE {
 A.nav:link {
     color: <?php echo $nav_color1;?>;
 }
+A.titlenav:link {
+    color: <?php echo $nav_color2;?>;
+}
 /*A.nav:active { color: }*/
 /*A.nav:visited { color:red }*/
 </style>

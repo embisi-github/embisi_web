@@ -14,6 +14,7 @@ $footer_color = "#ddddff";
 $nav_width = 130;
 $nav_background = "#567dff";
 $nav_color1 = "#ddddff";
+$nav_color2 = "#000000";
 
 $logo_height = 64;
 $logo_background = "#68fc58";
