@@ -15,14 +15,17 @@ page_header( "Overview" );
 page_sp();
 ?>
 
-Embisi is a small startup company that is focussing on building integrated embedded silicon systems.
-Such products must support a wide range of applications with simple programmability, with
-tight real-time constraints and peak performance loads.
+Embisi is a privately held company that focusses on building very low cost embedded IP system modules.
 
 <p>
 
-Many of the best software and hardware engineers in the world work in this space, so customers
-are challenging and rewarding to deal with
+
+
+<p>
+
+ Such products must support a wide range of applications with simple programmability, with
+tight real-time constraints and peak performance loads.
+
 
 <?php
 page_ep();

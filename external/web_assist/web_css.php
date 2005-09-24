@@ -5,6 +5,7 @@ TD {
 }
 .logo {
     font-family: Verdana, Tahoma, Arial;
+    line-height:100%;
 	font-size:48px;
     font-style:italic;
     color: <?php echo $logo_color;?>;
